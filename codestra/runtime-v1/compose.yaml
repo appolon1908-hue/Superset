@@ -1,0 +1,93 @@
+name: codestra-superset
+
+x-superset-common: &superset-common
+  image: ${SUPERSET_IMAGE:?SUPERSET_IMAGE must be an immutable image digest}
+  user: "${SUPERSET_UID:-1000}:${SUPERSET_GID:-1000}"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  env_file:
+    - ${SUPERSET_RUNTIME_ENV_FILE:?OpenBao must render the Superset runtime environment file}
+  environment:
+    SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    PYTHONPATH: /app/pythonpath
+  volumes:
+    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./codestra_security_manager_v2.py:/app/pythonpath/codestra_security_manager_v2.py:ro
+    - ./bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro
+    - superset_home:/app/superset_home
+  tmpfs:
+    - /tmp:size=256m,mode=1777
+  networks:
+    - codestra_data
+    - codestra_observability
+
+services:
+  superset-web:
+    <<: *superset-common
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        exec gunicorn
+        --bind 0.0.0.0:8088
+        --workers ${SUPERSET_WEB_WORKERS:-4}
+        --worker-class gevent
+        --timeout 120
+        --max-requests 1000
+        --max-requests-jitter 100
+        'superset.app:create_app()'
+    labels:
+      com.codestra.business: codestra
+      com.codestra.application: business-intelligence
+      com.codestra.service: superset-web
+      com.codestra.environment: ${CODESTRA_ENVIRONMENT:?set environment}
+      com.codestra.deployment: ${CODESTRA_DEPLOYMENT:?set immutable deployment identifier}
+      com.codestra.owner: data-platform
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "0.50"
+          memory: 1G
+
+  superset-bootstrap:
+    <<: *superset-common
+    profiles:
+      - bootstrap
+    restart: "no"
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        superset db upgrade &&
+        superset init &&
+        python /app/pythonpath/bootstrap_roles.py
+    labels:
+      com.codestra.business: codestra
+      com.codestra.application: business-intelligence
+      com.codestra.service: superset-bootstrap
+      com.codestra.environment: ${CODESTRA_ENVIRONMENT:?set environment}
+      com.codestra.deployment: ${CODESTRA_DEPLOYMENT:?set immutable deployment identifier}
+      com.codestra.owner: data-platform
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+volumes:
+  superset_home:
+
+networks:
+  codestra_data:
+    external: true
+    name: codestra-data
+  codestra_observability:
+    external: true
+    name: codestra-observability
