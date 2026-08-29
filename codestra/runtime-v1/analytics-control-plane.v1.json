@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0",
+  "status": "CONTROL_PLANE_PREPARED_NOT_APPLIED",
+  "businessColumn": "codestra_business",
+  "tenantColumn": "tenant_scope_id",
+  "businesses": [
+    "codestra",
+    "moneybee",
+    "beyvra",
+    "breero",
+    "larim-a",
+    "transportation",
+    "booked4seasons",
+    "social",
+    "klyrow",
+    "telnexa",
+    "kyqra",
+    "restaurant",
+    "provisioning"
+  ],
+  "roleModel": {
+    "superset-admin": {
+      "supersetRole": "Admin",
+      "scope": "platform",
+      "mayManageSecurity": true
+    },
+    "superset-analyst": {
+      "supersetRole": "Alpha",
+      "scope": "approved-curated-datasets",
+      "mayPublishCertifiedContent": true
+    },
+    "superset-viewer": {
+      "supersetRole": "Gamma",
+      "scope": "approved-portfolio-dashboards",
+      "mayEdit": false
+    },
+    "superset-security-auditor": {
+      "supersetRole": "Gamma",
+      "scope": "security-and-audit-datasets-only",
+      "mayEdit": false
+    },
+    "business-<business>-viewer": {
+      "supersetRole": "Gamma",
+      "rlsClause": "codestra_business = '<business>'",
+      "mayEdit": false
+    },
+    "business-<business>-analyst": {
+      "supersetRole": "Alpha",
+      "rlsClause": "codestra_business = '<business>'",
+      "mayPublishOnlyWithinBusiness": true
+    }
+  },
+  "datasetRequirements": {
+    "certified": true,
+    "ownerRequired": true,
+    "descriptionRequired": true,
+    "freshnessSlaRequired": true,
+    "businessColumnRequired": true,
+    "sensitivityClassificationRequired": true,
+    "readOnlyConnectionRequired": true,
+    "reportingSchemaOrReplicaRequired": true,
+    "rawPiiColumnsDefaultHidden": true,
+    "freeFormSqlOnProductionSources": false,
+    "writeDmlOrDdl": false,
+    "providerAdministrationSources": false
+  },
+  "approvedDatasetFamilies": [
+    "portfolio_executive_summary",
+    "revenue_usage_and_margin_authorized",
+    "service_level_attainment",
+    "customer_success_aggregate",
+    "provider_quality_aggregate",
+    "campaign_and_delivery_performance",
+    "operational_capacity_trends",
+    "data_freshness_and_quality",
+    "audit_and_access_review"
+  ],
+  "dashboardCatalogue": [
+    {
+      "id": "codestra-portfolio-executive",
+      "audience": "executive",
+      "scope": "portfolio",
+      "requiredSections": ["health", "growth", "usage", "sla", "provider-quality", "cost-margin-authorized", "data-freshness"]
+    },
+    {
+      "idPattern": "<business>-executive-scorecard",
+      "audience": "business-leadership",
+      "scope": "single-business",
+      "requiredSections": ["kpis", "trend", "sla", "quality", "capacity", "exceptions"]
+    },
+    {
+      "idPattern": "<business>-operations-and-customer-success",
+      "audience": "operations",
+      "scope": "single-business",
+      "requiredSections": ["volume", "service-level", "backlog", "provider-quality", "customer-success", "data-quality"]
+    },
+    {
+      "id": "codestra-security-and-governance",
+      "audience": "security-auditor",
+      "scope": "portfolio-metadata-only",
+      "requiredSections": ["access-review", "rls-coverage", "dataset-certification", "stale-assets", "query-audit"]
+    }
+  ],
+  "queryGuardrails": {
+    "defaultRowLimit": 10000,
+    "hardRowLimit": 100000,
+    "interactiveTimeoutSeconds": 60,
+    "asyncTimeoutSeconds": 600,
+    "concurrentQueriesPerUser": 5,
+    "resultCacheRequiredForReusableDashboards": true,
+    "crossDatabaseQueries": false,
+    "templateProcessing": false
+  },
+  "piiPolicy": {
+    "rawEmail": "masked-or-excluded",
+    "rawPhone": "masked-or-excluded",
+    "governmentId": "excluded",
+    "bankOrBrokerCredentials": "excluded",
+    "authenticationTokens": "excluded",
+    "fullRequestOrResponseBodies": "excluded",
+    "customerIdentifiers": "pseudonymized-when-needed",
+    "smallCohortSuppressionRequired": true
+  },
+  "scheduledReports": {
+    "directSmtpCredentialsInSuperset": false,
+    "directSmsOrVoice": false,
+    "approvedExportFormats": ["pdf", "png", "csv"],
+    "deliveryAuthority": "middleware-governed-notification-path",
+    "requiresRecipientAllowlist": true,
+    "requiresBusinessScopeCheck": true
+  },
+  "releaseGates": {
+    "allDatasetsCertified": false,
+    "allBusinessRolesExist": false,
+    "allRlsClausesApplied": false,
+    "crossBusinessDenialTestPassed": false,
+    "queryBudgetsLoadTested": false,
+    "piiReviewPassed": false,
+    "dashboardOwnersAssigned": false,
+    "scheduledDeliveryApproved": false
+  }
+}
