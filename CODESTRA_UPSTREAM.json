@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "component": "apache-superset",
+  "codestra_repository": "appolon1908-hue/Superset",
+  "upstream_repository": "apache/superset",
+  "upstream_clone_url": "https://github.com/apache/superset.git",
+  "upstream_ref": "master",
+  "import_path": "upstream",
+  "import_mode": "shallow-source-snapshot",
+  "preserve_upstream_license": true,
+  "branches": ["main", "staging", "production"],
+  "deployment_enabled": false
+}
