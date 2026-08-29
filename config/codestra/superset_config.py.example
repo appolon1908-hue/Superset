@@ -1,0 +1,59 @@
+"""Codestra Superset configuration example.
+
+Secrets and database URLs must be injected by the deployment environment.
+The webserver must bind to 127.0.0.1:8088 and sit behind Caddy.
+"""
+
+from __future__ import annotations
+
+import os
+
+from flask_appbuilder.security.manager import AUTH_OAUTH
+
+SECRET_KEY = os.environ["SUPERSET_SECRET_KEY"]
+SQLALCHEMY_DATABASE_URI = os.environ["SUPERSET_METADATA_DATABASE_URI"]
+
+ENABLE_PROXY_FIX = True
+PREFERRED_URL_SCHEME = "https"
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+WTF_CSRF_ENABLED = True
+TALISMAN_ENABLED = True
+
+AUTH_TYPE = AUTH_OAUTH
+AUTH_USER_REGISTRATION = True
+AUTH_USER_REGISTRATION_ROLE = "Gamma"
+AUTH_ROLES_SYNC_AT_LOGIN = True
+AUTH_ROLES_MAPPING = {
+    "observability-viewer": ["Gamma"],
+    "observability-operator": ["Alpha"],
+    "observability-admin": ["Admin"],
+}
+
+OAUTH_PROVIDERS = [
+    {
+        "name": "keycloak",
+        "token_key": "access_token",
+        "icon": "fa-key",
+        "remote_app": {
+            "client_id": "superset-analytics",
+            "client_secret": os.environ["SUPERSET_OIDC_CLIENT_SECRET"],
+            "client_kwargs": {"scope": "openid profile email"},
+            "server_metadata_url": (
+                "https://auth.codestra.co/realms/codestra/"
+                ".well-known/openid-configuration"
+            ),
+            "code_challenge_method": "S256",
+        },
+    }
+]
+
+# The companion CustomKeycloakSecurityManager rejects users that do not carry
+# at least one approved observability role and returns those roles as role_keys.
+from custom_keycloak_security_manager import CustomKeycloakSecurityManager
+
+CUSTOM_SECURITY_MANAGER = CustomKeycloakSecurityManager
+
+# Production data sources are registered separately with read-only credentials.
+# Do not place provider administration databases or write credentials here.
