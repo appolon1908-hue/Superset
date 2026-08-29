@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "component": "superset",
+  "codestraRole": "business intelligence and management analytics portal",
+  "corporatePurpose": "Provide executive and operational analytics for usage, SLA, delivery, cost, margin, provider quality and customer-safe business performance.",
+  "businessPortfolio": ["codestra", "moneybee", "beyvra", "breero", "larim-a", "transportation", "booked4seasons", "social", "klyrow", "telnexa", "kyqra", "restaurant", "provisioning"],
+  "standardDimensions": ["codestra_business", "application", "service", "environment", "server", "region", "deployment"],
+  "forbiddenLabels": ["tenant_id", "customer_id", "user_id", "email", "phone", "request_id", "trace_id", "message_id", "financial_transaction_id"],
+  "corporateFeatures": ["executive_analytics", "row_level_security", "keycloak_sso_target", "curated_datasets_only", "communications_usage_reporting", "provider_quality_reporting", "cost_margin_reporting", "export_governance"],
+  "dashboardContribution": ["management_scorecards", "tenant_safe_usage_reports", "sla_reports", "provider_quality_analytics", "business_growth_views"],
+  "beyvraBoundary": "Superset may show approved aggregate trading operations analytics only; no broker credentials, raw orders, customer account balances or trading authority.",
+  "activationStatus": "SOURCE_PREPARED_NOT_DEPLOYED"
+}
