@@ -127,6 +127,7 @@ services:
 
   superset-beat:
     <<: *superset-common
+    pids_limit: 128
     command:
       - celery
       - --app=superset.tasks.celery_app:app
