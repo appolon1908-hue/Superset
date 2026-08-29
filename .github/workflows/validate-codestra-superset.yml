@@ -1,0 +1,74 @@
+name: Validate Codestra Superset corporate configuration
+
+on:
+  pull_request:
+    paths:
+      - 'codestra/**'
+      - 'scripts/validate_codestra_superset.py'
+      - '.github/workflows/validate-codestra-superset.yml'
+  push:
+    branches: [development, test, staging, production, main]
+    paths:
+      - 'codestra/**'
+      - 'scripts/validate_codestra_superset.py'
+      - '.github/workflows/validate-codestra-superset.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codestra-superset-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pinned validation dependency
+        run: python -m pip install --disable-pip-version-check --no-cache-dir PyYAML==6.0.3
+
+      - name: Compile and validate corporate BI configuration
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
+        run: |
+          python -m py_compile \
+            scripts/validate_codestra_superset.py \
+            codestra/runtime-v1/codestra_security_manager.py \
+            codestra/runtime-v1/superset_config.py.example
+          python scripts/validate_codestra_superset.py
+
+      - name: Render hardened Compose candidate
+        env:
+          SUPERSET_IMAGE: apache/superset:99.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          CODESTRA_ENVIRONMENT: test
+          CODESTRA_REGION: ci
+          CODESTRA_SERVER: github-actions
+          CODESTRA_SUPERSET_DEPLOYMENT_ID: exact-head-ci
+          CODESTRA_ANALYTICS_NETWORK: codestra-analytics
+          CODESTRA_OBSERVABILITY_NETWORK: codestra-observability
+        run: |
+          docker compose -f codestra/runtime-v1/compose.candidate.yaml --profile candidate-after-approval config > /tmp/codestra-superset-compose.yaml
+          test -s /tmp/codestra-superset-compose.yaml
+          ! grep -Eq ':latest([[:space:]]|$)|privileged: true|network_mode: host|pid: host|0\.0\.0\.0:8088:8088|SUPERSET_SECRET_KEY=|SUPERSET_OIDC_CLIENT_SECRET=' /tmp/codestra-superset-compose.yaml
+          test "$(grep -c 'host_ip: 127.0.0.1' /tmp/codestra-superset-compose.yaml)" -eq 1
+
+      - name: Confirm source-only safety state
+        run: |
+          test "$(python -c 'import json; print(json.load(open("codestra/runtime-v1/runtime.v1.json"))["status"])')" = "CONFIG_PREPARED_NOT_DEPLOYED"
+          test "$(python -c 'import json; print(json.load(open("codestra/runtime-v1/analytics-control-plane.v1.json"))["status"])')" = "CONTROL_PLANE_PREPARED_NOT_APPLIED"
+          python - <<'PY'
+          import json
+          runtime = json.load(open('codestra/runtime-v1/runtime.v1.json', encoding='utf-8'))
+          control = json.load(open('codestra/runtime-v1/analytics-control-plane.v1.json', encoding='utf-8'))
+          assert runtime['activation'] and all(value is False for value in runtime['activation'].values())
+          assert control['releaseGates'] and all(value is False for value in control['releaseGates'].values())
+          PY
