@@ -1,0 +1,58 @@
+"""Fail-closed Keycloak role extraction for Codestra Superset.
+
+Copy this file beside the active `superset_config.py` as
+`custom_keycloak_security_manager.py` during deployment.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from superset.security import SupersetSecurityManager
+
+
+APPROVED_ROLES = {
+    "observability-viewer",
+    "observability-operator",
+    "observability-admin",
+}
+
+
+class CustomKeycloakSecurityManager(SupersetSecurityManager):
+    """Accept only users with an approved Codestra observability role."""
+
+    def oauth_user_info(
+        self,
+        provider: str,
+        response: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if provider != "keycloak":
+            return {}
+
+        remote = self.appbuilder.sm.oauth_remotes[provider]
+        userinfo_response = remote.get("userinfo")
+        userinfo = userinfo_response.json()
+        if not isinstance(userinfo, dict):
+            return {}
+
+        realm_access = userinfo.get("realm_access", {})
+        roles = realm_access.get("roles", []) if isinstance(realm_access, dict) else []
+        approved = sorted(APPROVED_ROLES.intersection(str(role) for role in roles))
+        if not approved:
+            return {}
+
+        subject = str(userinfo.get("sub", "")).strip()
+        username = str(userinfo.get("preferred_username", "")).strip()
+        email = str(userinfo.get("email", "")).strip()
+        if not subject or not username or not email:
+            return {}
+
+        return {
+            "id": subject,
+            "username": username,
+            "name": str(userinfo.get("name", username)),
+            "first_name": str(userinfo.get("given_name", "")),
+            "last_name": str(userinfo.get("family_name", "")),
+            "email": email,
+            "role_keys": approved,
+        }
