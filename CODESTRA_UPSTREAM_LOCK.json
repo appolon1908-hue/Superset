@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "upstream_clone_url": "https://github.com/apache/superset.git",
+  "upstream_ref": "master",
+  "upstream_commit": "96119ffefce6165efa4a655dd4674ec697b819d1",
+  "import_path": "upstream",
+  "synchronized_at": "2026-08-29T17:23:55.470814+00:00",
+  "deployment_enabled": false
+}
