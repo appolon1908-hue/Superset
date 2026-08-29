@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "service": "superset",
+  "hostname": "supe.codestra.media",
+  "publicUrl": "https://supe.codestra.media",
+  "hostBind": "127.0.0.1:8088",
+  "publicNativePortAllowed": false,
+  "edgeRepository": "appolon1908-hue/Caddy",
+  "identityRepository": "appolon1908-hue/Keycloak",
+  "oidc": {
+    "issuer": "https://auth.codestra.co/realms/codestra",
+    "clientId": "superset-analytics",
+    "callback": "https://supe.codestra.media/oauth-authorized/keycloak",
+    "pkce": "S256",
+    "clientSecretEnvironmentVariable": "SUPERSET_OIDC_CLIENT_SECRET",
+    "roleClaimPath": "realm_access.roles",
+    "roleMapping": {
+      "observability-viewer": "Gamma",
+      "observability-operator": "Alpha",
+      "observability-admin": "Admin"
+    }
+  },
+  "dataPolicy": {
+    "curatedReadModelsOnly": true,
+    "liveProviderAdminDatabasesAllowed": false,
+    "writeCredentialsAllowed": false,
+    "rowLevelSecurityRequired": true
+  },
+  "activation": {
+    "deploymentEnabled": false,
+    "oidcSecretInstalled": false,
+    "curatedDataSourcesApproved": false,
+    "caddyRouteActivated": false,
+    "productionApproved": false
+  }
+}
