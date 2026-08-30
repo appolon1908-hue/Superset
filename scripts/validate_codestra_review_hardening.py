@@ -11,6 +11,9 @@ from typing import Iterator
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ACTIVE_CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py"
 EXAMPLE_CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py.example"
+SECURITY_MANAGER = (
+    ROOT / "codestra" / "runtime-v1" / "codestra_security_manager_v2.py"
+)
 PROFILE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "validate-codestra-enterprise-profile.yml"
 )
@@ -107,7 +110,7 @@ def validate_feature_flags(tree: ast.Module, label: str) -> None:
         fail(f"{label}: ALERT_REPORTS must remain false")
 
 
-def validate_business_roles(text: str, label: str) -> None:
+def validate_business_roles(text: str, catalogue_text: str, label: str) -> None:
     required_fragments = (
         'f"business-{business}-viewer"',
         'f"business-{business}-analyst"',
@@ -125,7 +128,7 @@ def validate_business_roles(text: str, label: str) -> None:
         if fragment in text:
             fail(f"{label}: business identity is collapsed into shared base role")
     for business in BUSINESSES:
-        if f'"{business}"' not in text:
+        if f'"{business}"' not in catalogue_text:
             fail(f"{label}: business catalogue omits {business}")
 
 
@@ -147,7 +150,8 @@ def main() -> None:
         tree = parse(path)
         validate_pkce(tree, label)
         validate_feature_flags(tree, label)
-        validate_business_roles(text, label)
+        catalogue_text = read(SECURITY_MANAGER if path == ACTIVE_CONFIG else path)
+        validate_business_roles(text, catalogue_text, label)
     validate_workflow()
     print("CODESTRA_SUPERSET_REVIEW_HARDENING_PASS=1")
 

@@ -35,6 +35,7 @@ jobs:
           python3 -m py_compile \
             scripts/validate_codestra_enterprise_profile.py \
             scripts/validate_codestra_review_hardening.py \
+            codestra/runtime-v1/codestra_security_manager_v2.py \
             codestra/runtime-v1/superset_config.py \
             codestra/runtime-v1/superset_config.py.example
           python3 scripts/validate_codestra_enterprise_profile.py
