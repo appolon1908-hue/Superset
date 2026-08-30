@@ -79,9 +79,19 @@ AUTH_ROLES_MAPPING = {
     "superset-admin": ["Admin"],
     "superset-analyst": ["Alpha"],
     "superset-viewer": ["Gamma"],
-    "superset-security-auditor": ["Gamma"],
-    **{f"business-{business}-viewer": ["Gamma"] for business in BUSINESSES},
-    **{f"business-{business}-analyst": ["Alpha"] for business in BUSINESSES},
+    "superset-security-auditor": ["Codestra Security Auditor"],
+    **{
+        f"business-{business}-viewer": [
+            f"Codestra Business {business} Viewer"
+        ]
+        for business in BUSINESSES
+    },
+    **{
+        f"business-{business}-analyst": [
+            f"Codestra Business {business} Analyst"
+        ]
+        for business in BUSINESSES
+    },
 }
 CUSTOM_SECURITY_MANAGER = CodestraSecurityManager
 OAUTH_PROVIDERS = [
@@ -90,9 +100,11 @@ OAUTH_PROVIDERS = [
         "token_key": "access_token",
         "icon": "fa-key",
         "remote_app": {
-            "client_id": os.environ.get("SUPERSET_OAUTH_CLIENT_ID", "superset-analytics"),
+            "client_id": os.environ.get(
+                "SUPERSET_OAUTH_CLIENT_ID", "superset-analytics"
+            ),
             "client_secret": read_secret("SUPERSET_OIDC_CLIENT_SECRET_FILE"),
-            "client_kwargs": {"scope": "openid profile email"},
+            "client_kwargs": {"scope": "openid profile email roles"},
             "server_metadata_url": (
                 "https://auth.codestra.co/realms/codestra/"
                 ".well-known/openid-configuration"
@@ -121,6 +133,7 @@ EXPLORE_FORM_DATA_CACHE_CONFIG = {
     **CACHE_CONFIG,
     "CACHE_KEY_PREFIX": "codestra_superset_explore_",
 }
+
 
 class CeleryConfig:
     broker_url = REDIS_URL

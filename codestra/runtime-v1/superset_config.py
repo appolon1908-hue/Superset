@@ -45,8 +45,8 @@ OAUTH_PROVIDERS = [
             ),
             "client_kwargs": {
                 "scope": "openid profile email roles",
-                "code_challenge_method": "S256",
             },
+            "code_challenge_method": "S256",
         },
     }
 ]
@@ -106,7 +106,7 @@ RATELIMIT_STORAGE_URI = os.environ["SUPERSET_RATELIMIT_REDIS_URI"]
 
 FEATURE_FLAGS = {
     "DASHBOARD_RBAC": True,
-    "ENABLE_TEMPLATE_PROCESSING": True,
+    "ENABLE_TEMPLATE_PROCESSING": False,
     "TAGGING_SYSTEM": True,
     "ALERT_REPORTS": False,
     "EMBEDDED_SUPERSET": False,
