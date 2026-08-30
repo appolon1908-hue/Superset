@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "status": "SEMANTIC_MODEL_PREPARED_NOT_REGISTERED",
+  "domain": "unified-intake",
+  "sourceAuthority": "curated analytics read models only",
+  "rowLevelSecurity": {
+    "dimension": "codestra_business",
+    "default": "deny",
+    "platformRoles": ["superset-platform-admin", "superset-security-auditor"],
+    "businessRoles": ["business-<business>-analytics-viewer", "business-<business>-analytics-analyst"]
+  },
+  "datasets": [
+    {"name": "intake_lead_daily", "grain": ["date", "codestra_business", "channel", "form_kind", "result"], "metrics": ["submissions", "accepted", "duplicates", "validation_failures", "acceptance_rate", "duplicate_rate"], "freshnessSlaMinutes": 60},
+    {"name": "intake_delivery_daily", "grain": ["date", "codestra_business", "delivery_target", "result"], "metrics": ["delivery_attempts", "delivery_successes", "delivery_failures", "delivery_success_rate", "p95_delivery_seconds"], "freshnessSlaMinutes": 60},
+    {"name": "intake_survey_daily", "grain": ["date", "codestra_business", "survey_kind", "anonymous", "result"], "metrics": ["responses", "validation_failures", "completion_rate", "p95_processing_seconds"], "freshnessSlaMinutes": 120},
+    {"name": "intake_nps_daily", "grain": ["date", "codestra_business", "survey_kind"], "metrics": ["responses", "promoters", "passives", "detractors", "nps"], "minimumCohortSize": 10, "freshnessSlaMinutes": 120},
+    {"name": "intake_funnel_daily", "grain": ["date", "codestra_business", "channel", "form_kind"], "metrics": ["views", "starts", "submissions", "accepted", "delivered", "conversion_rate", "delivery_rate"], "freshnessSlaMinutes": 120}
+  ],
+  "forbiddenColumns": ["tenant_id", "site_id", "campaign_id", "form_id", "survey_id", "question_id", "contact_id", "lead_id", "response_id", "email", "phone", "name", "address", "message", "transcript", "answers", "free_text", "custom_fields", "consent_text", "request_id", "correlation_id", "trace_id", "idempotency_key"],
+  "privacy": {"rawSurveyAnswers": false, "rawLeadFields": false, "smallCohortSuppression": 10, "directOperationalDatabaseQueries": false, "scheduledArtifactDeliveryEnabled": false},
+  "activation": {"datasetsRegistered": false, "rlsNegativeTestsPassed": false, "productionApproved": false}
+}
