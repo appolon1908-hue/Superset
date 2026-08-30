@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "status": "CONTRACT_PREPARED_NOT_DEPLOYED",
+  "domain": "unified-intake",
+  "canonicalFlow": ["website-or-widget", "@codestra/intake-form-or-intake-survey", "@codestra/intake-sdk", "same-origin-intake-bff", "caddy", "kong", "middleware-durable-intake", "odoo-or-analytics-or-approved-workflow"],
+  "events": ["codestra.events.lead_submitted", "codestra.events.survey_response_submitted"],
+  "safeDimensions": ["date", "codestra_business", "channel", "form_kind", "survey_kind", "result", "delivery_target", "anonymous"],
+  "forbiddenLabelsOrPayloads": ["tenant_id", "site_id", "campaign_id", "form_id", "survey_id", "question_id", "customer_id", "contact_id", "lead_id", "response_id", "account_id", "user_id", "email", "phone", "name", "address", "message", "transcript", "answers", "free_text", "custom_fields", "consent_text", "request_id", "correlation_id", "trace_id", "idempotency_key"],
+  "privacyRules": {
+    "rawFormAnswersInTelemetry": false,
+    "rawSurveyAnswersInTelemetry": false,
+    "minimumCohortSize": 10,
+    "directOperationalDatabaseWrite": false
+  },
+  "activation": {"runtimeApplied": false, "productionTargetsEnabled": false, "liveBusinessWritesEnabledByThisContract": false},
+  "component": "superset",
+  "responsibility": "governed read-only intake and survey business analytics",
+  "features": {
+    "datasets": ["intake_lead_daily", "intake_delivery_daily", "intake_survey_daily", "intake_nps_daily", "intake_funnel_daily"],
+    "rowLevelSecurityDimension": "codestra_business",
+    "minimumCohortSize": 10,
+    "rawAnswers": false,
+    "directOperationalDatabaseWrite": false,
+    "scheduledArtifactDeliveryEnabled": false
+  }
+}
