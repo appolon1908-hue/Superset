@@ -1,0 +1,9 @@
+{
+  "schemaVersion":"1.0",
+  "status":"ANALYTICS_CONTRACT_PREPARED_NOT_DEPLOYED",
+  "domain":"codestra-marketing-platform",
+  "kpis":["leads","qualified_leads","appointments","sales","revenue","marketing_spend","cpl","cpa","cac","roas","conversion_rate","close_rate","revenue_per_lead"],
+  "dimensions":["codestra_business","campaign","channel","provider","region","product","sales_team","period"],
+  "rules":{"operationalAlertAuthority":false,"writeBackAuthority":false,"rawSecretsAllowed":false,"rawCustomerPiiAllowed":false,"curatedReadModelsOnly":true},
+  "activation":{"datasetsProvisioned":false,"dashboardsProvisioned":false,"productionEnabled":false}
+}
