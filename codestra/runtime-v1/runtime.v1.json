@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "1.0",
+  "component": "superset",
+  "role": "codestra-corporate-business-intelligence-portal",
+  "canonicalHostname": "supe.codestra.media",
+  "publicUrl": "https://supe.codestra.media",
+  "hostBind": "127.0.0.1:8088",
+  "exposure": "authenticated_browser_behind_caddy",
+  "status": "CONFIG_PREPARED_NOT_DEPLOYED",
+  "businessScope": [
+    "codestra",
+    "moneybee",
+    "beyvra",
+    "breero",
+    "larim-a",
+    "transportation",
+    "booked4seasons",
+    "social",
+    "klyrow",
+    "telnexa",
+    "kyqra",
+    "restaurant",
+    "provisioning"
+  ],
+  "identity": {
+    "provider": "keycloak",
+    "issuer": "https://auth.codestra.co/realms/codestra",
+    "clientId": "superset-analytics",
+    "callback": "https://supe.codestra.media/oauth-authorized/keycloak",
+    "authorizationCode": true,
+    "pkce": "S256",
+    "ssoRequired": true,
+    "anonymousAccess": false,
+    "selfRegistrationWithoutApprovedRole": false,
+    "roleSyncAtLogin": true,
+    "globalRoles": [
+      "superset-admin",
+      "superset-analyst",
+      "superset-viewer",
+      "superset-security-auditor"
+    ],
+    "businessRoles": "business-<business>-viewer|business-<business>-analyst"
+  },
+  "analyticsControlPlane": {
+    "curatedDatasetsOnly": true,
+    "datasetCertificationRequired": true,
+    "semanticMetricsRequired": true,
+    "rowLevelSecurityRequired": true,
+    "businessColumn": "codestra_business",
+    "tenantColumnOptionalProtected": "tenant_scope_id",
+    "defaultAccess": "deny",
+    "crossBusinessAccess": "platform-admin-or-explicit-portfolio-role-only",
+    "productionWriteConnections": false,
+    "directProviderAdminDatabaseAccess": false,
+    "rawOperationalDatabaseAccess": false,
+    "preferReportingSchemasReadReplicasOrWarehouse": true,
+    "piiMaskingRequired": true,
+    "queryRowAndTimeLimitsRequired": true,
+    "dashboardAndDatasetChangeAuditRequired": true
+  },
+  "presentation": {
+    "portfolioExecutiveLanding": true,
+    "businessScorecards": true,
+    "slaAndCustomerSuccess": true,
+    "usageCostAndMarginWhereAuthorized": true,
+    "providerQuality": true,
+    "capacityAndTrendAnalysis": true,
+    "operationalIncidentDashboardAuthority": false,
+    "grafanaRemainsOperationalPortal": true
+  },
+  "scheduledReporting": {
+    "generationSupported": true,
+    "directUnapprovedEmailOrSmsDelivery": false,
+    "distributionPath": "approved-governed-middleware-path",
+    "enabledBeforeApproval": false
+  },
+  "dependencies": {
+    "edge": "Caddy",
+    "identity": "Keycloak",
+    "metadataDatabase": "dedicated-postgresql",
+    "cacheAndWorkerBroker": "dedicated-redis",
+    "credentials": "OpenBao-or-approved-secret-files",
+    "operationalDashboards": "Grafana",
+    "metrics": "Prometheus"
+  },
+  "runtimeHardening": {
+    "immutableImageRequired": true,
+    "nonRootRequired": true,
+    "readOnlyRootFilesystem": true,
+    "dropAllCapabilities": true,
+    "noNewPrivileges": true,
+    "loopbackOnlyNativePort": true,
+    "resourceLimitsRequired": true,
+    "secureCookies": true,
+    "csrfProtection": true,
+    "contentSecurityPolicy": true,
+    "databaseCredentialsFromFiles": true
+  },
+  "financialBoundaries": {
+    "moneybee": "Read-only analytics may measure funnel, servicing and outcomes but may not submit lenders, initiate funding or change loan state.",
+    "beyvra": "Read-only analytics may measure safe aggregate platform and business performance but may not place, cancel or replace trades, alter balances or positions, or receive broker/exchange signing credentials."
+  },
+  "activation": {
+    "immutableImageRecorded": false,
+    "metadataDatabaseProvisioned": false,
+    "redisProvisioned": false,
+    "secretFilesInstalled": false,
+    "keycloakClientApplied": false,
+    "keycloakRoleMappingTested": false,
+    "businessRolesProvisioned": false,
+    "rowLevelSecurityApplied": false,
+    "crossBusinessDenialTestPassed": false,
+    "curatedDatasourcesApproved": false,
+    "dashboardCatalogueImported": false,
+    "auditRetentionApproved": false,
+    "scheduledReportPathApproved": false,
+    "caddyRouteActivated": false,
+    "productionApproved": false,
+    "deploymentEnabled": false
+  }
+}
