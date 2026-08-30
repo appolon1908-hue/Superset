@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "1.0",
+  "platformName": "Codestra Business Intelligence",
+  "businesses": [
+    "codestra",
+    "moneybee",
+    "beyvra",
+    "breero",
+    "larim-a",
+    "transportation",
+    "booked4seasons",
+    "social",
+    "klyrow",
+    "telnexa",
+    "kyqra",
+    "restaurant",
+    "provisioning"
+  ],
+  "globalRoles": [
+    "superset-admin",
+    "superset-analyst",
+    "superset-viewer",
+    "superset-security-auditor"
+  ],
+  "businessRolePattern": "business-<codestra_business>-(viewer|analyst)",
+  "requiredDatasetColumns": [
+    "codestra_business",
+    "metric_date",
+    "source_system",
+    "data_freshness_timestamp",
+    "data_quality_status"
+  ],
+  "certifiedDatasets": [
+    {"name": "executive_portfolio_daily", "grain": "business-day", "purpose": "executive scorecard", "crossBusiness": "aggregate-only"},
+    {"name": "service_slo_daily", "grain": "business-service-day", "purpose": "availability and error budget", "crossBusiness": "admin-only"},
+    {"name": "incident_history", "grain": "business-incident", "purpose": "incident trends and response performance", "crossBusiness": "admin-only"},
+    {"name": "deployment_change_outcomes", "grain": "business-deployment", "purpose": "release quality and rollback trends", "crossBusiness": "admin-only"},
+    {"name": "communication_delivery_daily", "grain": "business-channel-provider-day", "purpose": "Klyrow and Telnexa delivery quality", "crossBusiness": "aggregate-only"},
+    {"name": "contact_center_sla_daily", "grain": "business-campaign-day", "purpose": "campaign-isolated service levels", "crossBusiness": "admin-only"},
+    {"name": "provider_performance_daily", "grain": "business-provider-day", "purpose": "external dependency reliability", "crossBusiness": "aggregate-only"},
+    {"name": "infrastructure_capacity_daily", "grain": "business-service-day", "purpose": "capacity, saturation, and cost planning", "crossBusiness": "admin-only"},
+    {"name": "security_control_daily", "grain": "business-control-day", "purpose": "control effectiveness without secrets or payloads", "crossBusiness": "security-auditor-only"},
+    {"name": "business_cost_allocation_monthly", "grain": "business-service-month", "purpose": "showback and budget planning", "crossBusiness": "executive-aggregate-only"}
+  ],
+  "rowLevelSecurity": {
+    "column": "codestra_business",
+    "defaultDeny": true,
+    "businessRoleSeesOnlyMatchingBusiness": true,
+    "viewerCannotUseSqlLab": true,
+    "analystUsesCertifiedDatasetsOnly": true,
+    "crossBusinessAccessRequiresGlobalRole": true,
+    "databaseNativeRlsAlsoRequired": true
+  },
+  "forbiddenColumns": [
+    "password",
+    "secret",
+    "access_token",
+    "refresh_token",
+    "api_key",
+    "private_key",
+    "authorization_header",
+    "session_cookie",
+    "ssn",
+    "credit_report_raw",
+    "full_card_number",
+    "bank_account_number",
+    "broker_signing_key",
+    "broker_api_secret",
+    "email_body",
+    "sms_body",
+    "call_recording",
+    "raw_request_body",
+    "raw_response_body"
+  ],
+  "sensitiveBusinessRules": {
+    "moneybee": "aggregate lending funnel and SLA data only; no raw credit reports or government identifiers",
+    "beyvra": "aggregate platform health, market-data quality, reconciliation, and risk controls only; no execution credentials or customer trading instructions",
+    "klyrow": "delivery metadata and aggregate outcomes only; no message bodies",
+    "telnexa": "delivery and provider metadata only; no SMS bodies or full destination numbers",
+    "contactCenter": "campaign-isolated aggregates; no recording playback from Superset"
+  },
+  "releaseGates": {
+    "datasetOwnerRequired": true,
+    "sourceLineageRequired": true,
+    "freshnessSlaRequired": true,
+    "dataQualityChecksRequired": true,
+    "rlsTestEvidenceRequired": true,
+    "piiClassificationRequired": true,
+    "writeCredentialsAllowed": false,
+    "directProductionDatabaseAccessAllowed": false
+  }
+}
