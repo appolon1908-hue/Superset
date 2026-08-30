@@ -5,12 +5,14 @@ on:
     paths:
       - 'codestra/**'
       - 'scripts/validate_codestra_superset.py'
+      - 'scripts/validate_codestra_superset_oidc.py'
       - '.github/workflows/validate-codestra-superset.yml'
   push:
     branches: [development, test, staging, production, main]
     paths:
       - 'codestra/**'
       - 'scripts/validate_codestra_superset.py'
+      - 'scripts/validate_codestra_superset_oidc.py'
       - '.github/workflows/validate-codestra-superset.yml'
 
 permissions:
@@ -42,9 +44,15 @@ jobs:
         run: |
           python -m py_compile \
             scripts/validate_codestra_superset.py \
+            scripts/validate_codestra_superset_oidc.py \
             codestra/runtime-v1/codestra_security_manager.py \
             codestra/runtime-v1/superset_config.py.example
           python scripts/validate_codestra_superset.py
+
+      - name: Validate exact Keycloak OIDC and private-edge contract
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
+        run: python scripts/validate_codestra_superset_oidc.py
 
       - name: Render hardened Compose candidate
         env:
