@@ -1,0 +1,69 @@
+{
+  "authorityRole": "certified-read-only-business-analytics-authority",
+  "canonicalHostname": "supe.codestra.media",
+  "component": "superset",
+  "contractId": "codestra.observability.superset.v1",
+  "correlation": {
+    "indexedFields": ["codestra_business", "application", "service", "environment", "server", "region", "deployment"],
+    "propagateHeaders": ["X-Correlation-ID", "traceparent"],
+    "protectedNonIndexedFields": ["request_id", "trace_id", "tenant_id"],
+    "structuredFields": ["correlation_id", "request_id", "trace_id", "tenant_id"]
+  },
+  "deploymentClass": "central",
+  "displayName": "Apache Superset",
+  "integrations": [
+    {"direction": "outbound", "mutating": false, "peer": "openbao", "protocol": "secret-file", "purpose": "obtain short-lived read-only dataset credentials", "signal": "identity-secrets"},
+    {"direction": "outbound", "mutating": false, "peer": "certified-readonly-datasets", "protocol": "sql-read-only", "purpose": "query certified row-level-secured datasets", "signal": "analytics"}
+  ],
+  "managementReadback": {
+    "allowsMutation": false,
+    "controlApiOwner": "appolon1908-hue/Codestra-Telemetry",
+    "exposesSecretValues": false,
+    "healthOperationId": "health",
+    "readinessOperationId": "readiness",
+    "registryServiceId": "superset",
+    "responseBodyPolicy": "discard"
+  },
+  "nativeApi": {
+    "authentication": {
+      "callerControlledBusinessAllowed": false,
+      "credentialSource": "secret_file",
+      "requiredScopes": ["observability.read"],
+      "tenantHeader": null,
+      "transport": "edge_oidc"
+    },
+    "baseUrlEnvironment": "CODESTRA_SUPERSET_URL",
+    "operations": [
+      {"acceptedStatuses": [200], "access": "read_only", "category": "health", "controlPlaneProxyAllowed": false, "id": "health", "method": "GET", "path": "/health", "responseBodyPolicy": "discard", "timeoutMs": 3000},
+      {"acceptedStatuses": [200], "access": "read_only", "category": "readiness", "controlPlaneProxyAllowed": false, "id": "readiness", "method": "GET", "path": "/health", "responseBodyPolicy": "discard", "timeoutMs": 3000},
+      {"acceptedStatuses": [200], "access": "read_only", "category": "query", "controlPlaneProxyAllowed": false, "id": "dashboards", "method": "GET", "path": "/api/v1/dashboard/", "responseBodyPolicy": "native", "timeoutMs": 3000},
+      {"acceptedStatuses": [200], "access": "read_only", "category": "query", "controlPlaneProxyAllowed": false, "id": "charts", "method": "GET", "path": "/api/v1/chart/", "responseBodyPolicy": "native", "timeoutMs": 3000},
+      {"acceptedStatuses": [200], "access": "read_only", "category": "query", "controlPlaneProxyAllowed": false, "id": "datasets", "method": "GET", "path": "/api/v1/dataset/", "responseBodyPolicy": "native", "timeoutMs": 3000}
+    ]
+  },
+  "nativeExposure": "loopback_edge_only",
+  "release": {
+    "imageDigestEnvironment": "CODESTRA_SUPERSET_IMAGE_DIGEST",
+    "immutableImageRequired": true,
+    "sourceRevisionEnvironment": "CODESTRA_SUPERSET_SOURCE_REVISION"
+  },
+  "repository": "appolon1908-hue/Superset",
+  "safety": {
+    "anonymousManagementAccessAllowed": false,
+    "callerControlledBusinessAllowed": false,
+    "crossBusinessDefaultAllowed": false,
+    "insecureTlsVerificationAllowed": false,
+    "mutationProxyEnabled": false,
+    "nativeApiProxyEnabled": false,
+    "runtimeActivationAuthorized": false,
+    "secretValueReadbackEnabled": false
+  },
+  "schemaAuthority": {
+    "path": "codestra/api/service-contract.schema.json",
+    "repository": "appolon1908-hue/Codestra-Telemetry",
+    "sourceRevision": "c35d880a730ca5206d445e8a9a688cb465ae2ad4",
+    "version": "1.0.0"
+  },
+  "schemaVersion": "1.0.0",
+  "signals": {"consumes": [], "produces": ["analytics"]}
+}
