@@ -17,6 +17,8 @@ x-superset-common: &superset-common
   environment: &superset-environment
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
     PYTHONPATH: /app/pythonpath
+    SUPERSET_PUBLIC_URL: https://supe.codestra.media
+    KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
     SUPERSET_OAUTH_CLIENT_ID: superset-analytics
     SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key
     SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri
@@ -31,7 +33,7 @@ x-superset-common: &superset-common
     - superset_redis_url
     - superset_oidc_client_secret
   volumes:
-    - ./superset_config.py.example:/app/pythonpath/superset_config.py:ro
+    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
     - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
     - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
     - superset_home:/app/superset_home
@@ -63,6 +65,8 @@ services:
       - --workers=${SUPERSET_WEB_WORKERS:-4}
       - --worker-class=gevent
       - --timeout=120
+      - --max-requests=1000
+      - --max-requests-jitter=100
       - --limit-request-line=4094
       - --limit-request-field_size=8190
       - --access-logfile=-
