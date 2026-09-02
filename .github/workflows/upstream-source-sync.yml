@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: codestra-upstream-source-sync
@@ -27,6 +28,8 @@ jobs:
           fetch-depth: 0
       - name: Import official upstream source snapshot
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           mapfile -t values < <(python3 - <<'PY'
@@ -44,18 +47,23 @@ jobs:
           UPSTREAM_SHA="$(git -C .codestra-upstream-src rev-parse HEAD)"
           rm -rf .codestra-upstream-src/.git
           mv .codestra-upstream-src "$IMPORT_PATH"
-          export UPSTREAM_URL UPSTREAM_REF UPSTREAM_SHA
+          git add -A upstream
+          STAGED_TREE_SHA="$(git write-tree)"
+          IMPORTED_TREE_SHA="$(git rev-parse "${STAGED_TREE_SHA}:upstream")"
+          export UPSTREAM_URL UPSTREAM_REF UPSTREAM_SHA IMPORTED_TREE_SHA
           python3 - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          Path('CODESTRA_UPSTREAM_LOCK.json').write_text(json.dumps({'schema_version':'1.0','upstream_clone_url':os.environ['UPSTREAM_URL'],'upstream_ref':os.environ['UPSTREAM_REF'],'upstream_commit':os.environ['UPSTREAM_SHA'],'import_path':'upstream','synchronized_at':datetime.now(timezone.utc).isoformat(),'deployment_enabled':False}, indent=2)+'\n')
+          Path('CODESTRA_UPSTREAM_LOCK.json').write_text(json.dumps({'schema_version':'1.1','upstream_clone_url':os.environ['UPSTREAM_URL'],'upstream_ref':os.environ['UPSTREAM_REF'],'upstream_commit':os.environ['UPSTREAM_SHA'],'import_path':'upstream','imported_tree_sha':os.environ['IMPORTED_TREE_SHA'],'source_tree_verification':True,'synchronized_at':datetime.now(timezone.utc).isoformat(),'deployment_enabled':False}, indent=2)+'\n')
           PY
           git config user.name 'codestra-upstream-sync'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add -A upstream CODESTRA_UPSTREAM_LOCK.json
           git diff --cached --quiet && exit 0
           git commit -m "vendor: sync official upstream ${UPSTREAM_SHA}"
-          git push origin HEAD:main
-          git push origin HEAD:staging
-          git push origin HEAD:production
+          BRANCH="automation/upstream-${UPSTREAM_SHA}"
+          git push origin "HEAD:refs/heads/${BRANCH}"
+          gh pr create --base development --head "$BRANCH" \
+            --title "vendor: sync official upstream ${UPSTREAM_SHA}" \
+            --body "Automated byte-preserved upstream refresh. This PR does not deploy or activate production."

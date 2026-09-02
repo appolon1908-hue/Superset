@@ -1,0 +1,143 @@
+name: Validate Superset repository readiness
+on: [pull_request]
+permissions: {contents: read}
+jobs:
+  validate-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {ref: "${{ github.event.pull_request.head.sha }}", fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: "3.13"}
+      - name: Validate exact source and deterministic bundle
+        env: {HEAD_SHA: "${{ github.event.pull_request.head.sha }}", BASE_SHA: "${{ github.event.pull_request.base.sha }}"}
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          python3 -m pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt
+          python3 scripts/validate_codestra_enterprise_profile.py
+          python3 scripts/validate_codestra_superset.py
+          python3 scripts/validate_codestra_superset_oidc.py
+          python3 scripts/validate_codestra_superset_readiness.py
+          python3 scripts/validate_codestra_review_hardening.py
+          python3 scripts/validate_repository_readiness.py
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          python3 scripts/build_config_bundle.py --output /tmp/superset-config.tar.gz
+          CODESTRA_SUPERSET_SOURCE_REVISION="$HEAD_SHA" \
+            docker compose -f codestra/runtime-v1/compose.production.yaml config >/dev/null
+          git diff --check "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)upstream/**'
+      - name: Scan changed and governed source with redacted output
+        env: {HEAD_SHA: "${{ github.event.pull_request.head.sha }}", BASE_SHA: "${{ github.event.pull_request.base.sha }}"}
+        run: |
+          archive="${RUNNER_TEMP}/gitleaks.tar.gz"
+          curl --fail --silent --show-error --location https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz --output "$archive"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum --check -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --config .gitleaks.toml --no-banner --redact=100 --exit-code 1 --log-opts="${BASE_SHA}..${HEAD_SHA}" .
+          "$RUNNER_TEMP/gitleaks" dir --config .gitleaks.toml --no-banner --redact=100 --exit-code 1 .
+      - name: Validate official source and OCI identities
+        run: |
+          set -Eeuo pipefail
+          lock=codestra/release/runtime-image.lock.json
+          image="$(jq -r .image "$lock")"
+          expected_tag_commit="$(jq -r .upstreamTagCommit "$lock")"
+          actual_tag_commit="$(git ls-remote https://github.com/apache/superset.git 'refs/tags/6.1.0^{}' | awk '{print $1}')"
+          test "$actual_tag_commit" = "$expected_tag_commit"
+          docker buildx imagetools inspect --raw "$image" > "$RUNNER_TEMP/superset-index.json"
+          actual_amd64="$(jq -r '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest] | if length == 1 then .[0] else error("linux/amd64 manifest identity is not unique") end' "$RUNNER_TEMP/superset-index.json")"
+          test "$actual_amd64" = "$(jq -r .linuxAmd64ManifestDigest "$lock")"
+          docker pull "$image"
+          digest="${image##*@}"
+          docker image inspect "$image" | jq -e --arg digest "$digest" '.[0].RepoDigests | any(endswith("@" + $digest))'
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$image")" = "6.1.0"
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")" = "$expected_tag_commit"
+          test "$(docker image inspect --format '{{ .Config.User }}' "$image")" = "superset"
+      - name: Generate SBOM and enforce vulnerability gates
+        run: |
+          set -Eeuo pipefail
+          install_tool() {
+            url="$1" expected="$2" binary="$3"
+            archive="${RUNNER_TEMP}/$(basename "$url")"
+            curl --fail --silent --show-error --location "$url" --output "$archive"
+            echo "$expected  $archive" | sha256sum --check -
+            tar -xzf "$archive" -C "$RUNNER_TEMP" "$binary"
+            install -m 0755 "${RUNNER_TEMP}/${binary}" "${RUNNER_TEMP}/${binary}.verified"
+          }
+          install_tool https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_linux_amd64.tar.gz 8fcb33017a0dc1058298c923c436d19dfa68ae93968e0b423248542e3afb9fc3 syft
+          install_tool https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a trivy
+          image="$(jq -r .image codestra/release/runtime-image.lock.json)"
+          "$RUNNER_TEMP/syft.verified" "$image" -o spdx-json="$RUNNER_TEMP/superset-image.spdx.json"
+          test -s "$RUNNER_TEMP/superset-image.spdx.json"
+          "$RUNNER_TEMP/trivy.verified" fs --exit-code 1 --severity HIGH,CRITICAL --scanners vuln,secret,misconfig --skip-dirs upstream .
+          "$RUNNER_TEMP/trivy.verified" image --exit-code 1 --severity HIGH,CRITICAL "$image"
+
+  validate-disposable-migration-and-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {ref: "${{ github.event.pull_request.head.sha }}", persist-credentials: false}
+      - name: Migrate, start, back up and restore with disposable resources
+        run: |
+          set -Eeuo pipefail
+          network="superset-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          postgres="superset-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          redis="superset-redis-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          web="superset-web-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f "$web" "$redis" "$postgres" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          image="$(jq -r .image codestra/release/runtime-image.lock.json)"
+          password="$(openssl rand -hex 24)"
+          secret_key="$(openssl rand -hex 42)"
+          secret_root="${RUNNER_TEMP}/superset-secrets"
+          mkdir -p "$secret_root"
+          printf '%s\n' "$secret_key" > "$secret_root/secret_key"
+          printf '%s\n' "postgresql+psycopg2://superset:${password}@${postgres}:5432/superset" > "$secret_root/database_uri"
+          printf '%s\n' "redis://${redis}:6379/0" > "$secret_root/redis_url"
+          printf '%s\n' "disposable-ci-client-secret" > "$secret_root/oidc_secret"
+          chmod 0444 "$secret_root"/*
+          docker network create "$network"
+          docker run -d --name "$postgres" --network "$network" \
+            -e POSTGRES_USER=superset -e POSTGRES_PASSWORD="$password" -e POSTGRES_DB=superset \
+            --health-cmd='pg_isready -U superset -d superset' --health-interval=2s --health-retries=30 postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+          docker run -d --name "$redis" --network "$network" \
+            --health-cmd='redis-cli ping' --health-interval=2s --health-retries=30 redis:8.2.1-alpine@sha256:987c376c727652f99625c7d205a1cba3cb2c53b92b0b62aade2bd48ee1593232
+          for container in "$postgres" "$redis"; do
+            for attempt in $(seq 1 45); do
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
+              test "$state" = healthy && break
+              test "$attempt" -lt 45
+              sleep 2
+            done
+          done
+          common=(--network "$network" -e SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py -e PYTHONPATH=/app/pythonpath -e KEYCLOAK_ISSUER=https://auth.codestra.co/realms/codestra -e SUPERSET_OAUTH_CLIENT_ID=superset-analytics -e CODESTRA_SUPERSET_SOURCE_REVISION="$GITHUB_SHA" -e CODESTRA_SUPERSET_IMAGE_DIGEST="${image##*@}" -e SUPERSET_SECRET_KEY_FILE=/run/secrets/secret_key -e SUPERSET_METADATA_DATABASE_URI_FILE=/run/secrets/database_uri -e SUPERSET_REDIS_URL_FILE=/run/secrets/redis_url -e SUPERSET_OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc_secret -v "$PWD/codestra/runtime-v1/superset_config.py:/app/pythonpath/superset_config.py:ro" -v "$PWD/codestra/runtime-v1/codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro" -v "$PWD/codestra/runtime-v1/check_release_identity.py:/app/pythonpath/check_release_identity.py:ro" -v "$PWD/codestra/runtime-v1/bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro" -v "$secret_root:/run/secrets:ro")
+          docker run --rm "${common[@]}" --entrypoint /bin/sh "$image" -ec 'python /app/pythonpath/check_release_identity.py && superset db upgrade && superset init && python /app/pythonpath/bootstrap_roles.py'
+          docker run -d --name "$web" "${common[@]}" --health-cmd='python -c "import urllib.request; urllib.request.urlopen('\''http://127.0.0.1:8088/health'\'', timeout=3).read()"' --health-interval=3s --health-retries=40 --entrypoint /bin/sh "$image" -ec 'python /app/pythonpath/check_release_identity.py && exec gunicorn --bind=0.0.0.0:8088 --workers=1 --timeout=120 "superset.app:create_app()"'
+          for attempt in $(seq 1 60); do
+            state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$web")"
+            test "$state" = healthy && break
+            if test "$attempt" -eq 60; then docker logs "$web"; exit 1; fi
+            sleep 3
+          done
+          docker exec "$postgres" pg_dump -U superset -d superset -Fc -f /tmp/superset.dump
+          docker exec "$postgres" createdb -U superset superset_restore
+          docker exec "$postgres" pg_restore -U superset -d superset_restore --no-owner /tmp/superset.dump
+          docker exec "$postgres" psql -U superset -d superset_restore -v ON_ERROR_STOP=1 -Atc 'SELECT count(*) > 0 FROM information_schema.tables WHERE table_schema = '\''public'\'';' | grep -qx t
+          docker exec "$postgres" psql -U superset -d superset_restore -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE analytics_readonly NOLOGIN;
+          CREATE TABLE certified_dataset (codestra_business text NOT NULL, metric_value integer NOT NULL);
+          INSERT INTO certified_dataset VALUES ('klyrow', 1), ('telnexa', 2);
+          ALTER TABLE certified_dataset ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE certified_dataset FORCE ROW LEVEL SECURITY;
+          CREATE POLICY business_isolation ON certified_dataset USING (codestra_business = current_setting('app.codestra_business', true));
+          GRANT SELECT ON certified_dataset TO analytics_readonly;
+          SQL
+          test "$(docker exec "$postgres" psql -U superset -d superset_restore -v ON_ERROR_STOP=1 -qAtc "SET ROLE analytics_readonly; SET app.codestra_business='klyrow'; SELECT count(*) FROM certified_dataset;")" = 1
+          if docker exec "$postgres" psql -U superset -d superset_restore -v ON_ERROR_STOP=1 -c "SET ROLE analytics_readonly; INSERT INTO certified_dataset VALUES ('klyrow', 3);"; then
+            echo "read-only analytics role unexpectedly performed a write" >&2
+            exit 1
+          fi
+          echo DISPOSABLE_MIGRATION_HEALTH_BACKUP_RESTORE=PASS

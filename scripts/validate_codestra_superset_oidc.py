@@ -12,8 +12,8 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNTIME_PATH = ROOT / "codestra" / "runtime-v1" / "runtime.v1.json"
-COMPOSE_PATH = ROOT / "codestra" / "runtime-v1" / "compose.candidate.yaml"
-CONFIG_PATH = ROOT / "codestra" / "runtime-v1" / "superset_config.py.example"
+COMPOSE_PATH = ROOT / "codestra" / "runtime-v1" / "compose.production.yaml"
+CONFIG_PATH = ROOT / "codestra" / "runtime-v1" / "superset_config.py"
 
 ISSUER = "https://auth.codestra.co/realms/codestra"
 CLIENT_ID = "superset-analytics"
@@ -52,8 +52,8 @@ def main() -> None:
         fail("canonical hostname mismatch")
     if runtime.get("hostBind") != "127.0.0.1:8088":
         fail("native Superset listener must remain loopback-only")
-    if runtime.get("status") != "CONFIG_PREPARED_NOT_DEPLOYED":
-        fail("Superset must remain source-prepared/not-deployed")
+    if runtime.get("status") != "PRODUCTION_CONFIG_READY_NOT_DEPLOYED":
+        fail("Superset must remain production-config-ready/not-deployed")
 
     identity = runtime.get("identity", {})
     expected_identity = {
@@ -75,9 +75,15 @@ def main() -> None:
     activation = runtime.get("activation")
     if not isinstance(activation, dict) or not activation:
         fail("runtime activation map is missing")
-    enabled = sorted(key for key, value in activation.items() if value is not False)
+    enabled = sorted(
+        key
+        for key, value in activation.items()
+        if key != "immutableImageRecorded" and value is not False
+    )
     if enabled:
         fail(f"runtime activation must remain false: {enabled}")
+    if activation.get("immutableImageRecorded") is not True:
+        fail("runtime must record the immutable image")
 
     compose = load_yaml(COMPOSE_PATH)
     common = compose.get("x-superset-common", {})
@@ -106,7 +112,7 @@ def main() -> None:
         '"name": "keycloak"',
         '"superset-analytics"',
         'read_secret("SUPERSET_OIDC_CLIENT_SECRET_FILE")',
-        ISSUER,
+        'os.environ["KEYCLOAK_ISSUER"]',
         '"code_challenge_method": "S256"',
         'AUTH_ROLES_SYNC_AT_LOGIN = True',
     ):

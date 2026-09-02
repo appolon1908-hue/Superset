@@ -6,7 +6,7 @@
   "publicUrl": "https://supe.codestra.media",
   "hostBind": "127.0.0.1:8088",
   "exposure": "authenticated_browser_behind_caddy",
-  "status": "CONFIG_PREPARED_NOT_DEPLOYED",
+  "status": "PRODUCTION_CONFIG_READY_NOT_DEPLOYED",
   "businessScope": [
     "codestra",
     "moneybee",
@@ -101,7 +101,7 @@
     "beyvra": "Read-only analytics may measure safe aggregate platform and business performance but may not place, cancel or replace trades, alter balances or positions, or receive broker/exchange signing credentials."
   },
   "activation": {
-    "immutableImageRecorded": false,
+    "immutableImageRecorded": true,
     "metadataDatabaseProvisioned": false,
     "redisProvisioned": false,
     "secretFilesInstalled": false,

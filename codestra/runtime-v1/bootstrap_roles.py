@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from superset import app
 
-from codestra_security_manager_v2 import BUSINESS_SLUGS
+from codestra_security_manager import BUSINESS_SLUGS
 
 
 def add_base_permissions(security_manager, source_name: str, target_name: str) -> None:

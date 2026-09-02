@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "status": "CONTROL_PLANE_PREPARED_NOT_APPLIED",
+  "status": "PRODUCTION_CONTROL_PLANE_DESIRED_STATE_READY_NOT_APPLIED",
   "businessColumn": "codestra_business",
   "tenantColumn": "tenant_scope_id",
   "businesses": [
@@ -78,24 +78,28 @@
   "dashboardCatalogue": [
     {
       "id": "codestra-portfolio-executive",
+      "owner": "business-intelligence",
       "audience": "executive",
       "scope": "portfolio",
       "requiredSections": ["health", "growth", "usage", "sla", "provider-quality", "cost-margin-authorized", "data-freshness"]
     },
     {
       "idPattern": "<business>-executive-scorecard",
+      "owner": "business-intelligence",
       "audience": "business-leadership",
       "scope": "single-business",
       "requiredSections": ["kpis", "trend", "sla", "quality", "capacity", "exceptions"]
     },
     {
       "idPattern": "<business>-operations-and-customer-success",
+      "owner": "business-operations",
       "audience": "operations",
       "scope": "single-business",
       "requiredSections": ["volume", "service-level", "backlog", "provider-quality", "customer-success", "data-quality"]
     },
     {
       "id": "codestra-security-and-governance",
+      "owner": "security-governance",
       "audience": "security-auditor",
       "scope": "portfolio-metadata-only",
       "requiredSections": ["access-review", "rls-coverage", "dataset-certification", "stale-assets", "query-audit"]

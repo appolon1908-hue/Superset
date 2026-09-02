@@ -9,8 +9,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 READINESS = ROOT / "codestra" / "runtime-v1" / "check_metadata_readiness.py"
-COMPOSE = ROOT / "codestra" / "runtime-v1" / "compose.candidate.yaml"
-CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py.example"
+COMPOSE = ROOT / "codestra" / "runtime-v1" / "compose.production.yaml"
+CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py"
 CONTRACT = ROOT / "docs" / "CODESTRA_PRODUCTION_SERVER_API_CONTRACT.md"
 
 

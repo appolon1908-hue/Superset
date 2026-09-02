@@ -44,8 +44,11 @@ class CodestraSecurityManager(SupersetSecurityManager):
         if provider != "keycloak":
             raise PermissionError("Only the Codestra Keycloak provider is approved")
 
+        issuer = os.environ["KEYCLOAK_ISSUER"].rstrip("/")
         remote = self.oauth_remotes[provider]
-        profile_response = remote.get("userinfo")
+        profile_response = remote.get(
+            f"{issuer}/protocol/openid-connect/userinfo"
+        )
         profile_response.raise_for_status()
         profile = profile_response.json()
 

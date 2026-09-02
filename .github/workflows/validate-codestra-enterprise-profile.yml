@@ -27,7 +27,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {persist-credentials: false}
       - name: Validate enterprise profile and review-hardening contract
         env:
           PYTHONPYCACHEPREFIX: /tmp/codestra-superset-profile-pycache
@@ -35,8 +36,7 @@ jobs:
           python3 -m py_compile \
             scripts/validate_codestra_enterprise_profile.py \
             scripts/validate_codestra_review_hardening.py \
-            codestra/runtime-v1/codestra_security_manager_v2.py \
             codestra/runtime-v1/superset_config.py \
-            codestra/runtime-v1/superset_config.py.example
+            codestra/runtime-v1/codestra_security_manager.py
           python3 scripts/validate_codestra_enterprise_profile.py
           python3 scripts/validate_codestra_review_hardening.py

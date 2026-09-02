@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "component": "superset",
+  "releaseModel": "verified-upstream-image-plus-signed-config",
+  "upstreamRepository": "apache/superset",
+  "upstreamVersion": "6.1.0",
+  "upstreamTag": "6.1.0",
+  "upstreamTagCommit": "c83fb2bb1dcfac41ac51bcebd82471f4a7180d18",
+  "image": "docker.io/apache/superset@sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d",
+  "imageIndexDigest": "sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d",
+  "linuxAmd64ManifestDigest": "sha256:00ac0ae0c90b8db0a5f111cce0f22babafcba9b3bc30b6ce3db5035060652a37",
+  "imageDeclaredUser": "superset",
+  "imageVersionLabel": "6.1.0",
+  "imageRevisionLabel": "c83fb2bb1dcfac41ac51bcebd82471f4a7180d18",
+  "upstreamSignatureState": "UNAVAILABLE_FROM_UPSTREAM_RELEASE",
+  "upstreamSignatureDisposition": "Official Apache release tag, exact commit, OCI index, linux/amd64 child manifest and image labels are independently locked; Codestra signs the reviewed configuration release.",
+  "codestraConfigurationRelease": "SIGSTORE_KEYLESS_REQUIRED",
+  "productionActivation": false
+}

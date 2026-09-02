@@ -1,11 +1,9 @@
 name: codestra-superset-corporate
 
 x-superset-common: &superset-common
-  image: ${SUPERSET_IMAGE:?SUPERSET_IMAGE must be an immutable image reference containing @sha256:}
-  profiles:
-    - candidate-after-approval
-  restart: "no"
-  user: "10001:10001"
+  image: docker.io/apache/superset@sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d
+  restart: unless-stopped
+  user: superset
   read_only: true
   init: true
   cap_drop:
@@ -17,6 +15,9 @@ x-superset-common: &superset-common
   environment: &superset-environment
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
     PYTHONPATH: /app/pythonpath
+    CODESTRA_SUPERSET_SOURCE_REVISION: ${CODESTRA_SUPERSET_SOURCE_REVISION:?protected 40-character Superset source revision is required}
+    CODESTRA_SUPERSET_IMAGE_DIGEST: sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d
+    KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
     SUPERSET_OAUTH_CLIENT_ID: superset-analytics
     SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key
     SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri
@@ -31,9 +32,10 @@ x-superset-common: &superset-common
     - superset_redis_url
     - superset_oidc_client_secret
   volumes:
-    - ./superset_config.py.example:/app/pythonpath/superset_config.py:ro
+    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
     - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
     - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
+    - ./check_release_identity.py:/app/pythonpath/check_release_identity.py:ro
     - superset_home:/app/superset_home
   tmpfs:
     - /tmp:rw,noexec,nosuid,nodev,size=128m
@@ -55,19 +57,46 @@ x-superset-common: &superset-common
     codestra.owner: business-intelligence
 
 services:
+  superset-migrate:
+    <<: *superset-common
+    profiles:
+      - migrate
+    restart: "no"
+    command:
+      - /bin/sh
+      - -ec
+      - python /app/pythonpath/check_release_identity.py && superset db upgrade && superset init && python /app/pythonpath/bootstrap_roles.py
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
+      - ./bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro
+      - ./check_release_identity.py:/app/pythonpath/check_release_identity.py:ro
+      - superset_home:/app/superset_home
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-migrate
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+          pids: 256
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+
   superset-web:
     <<: *superset-common
     command:
-      - gunicorn
-      - --bind=0.0.0.0:8088
-      - --workers=${SUPERSET_WEB_WORKERS:-4}
-      - --worker-class=gevent
-      - --timeout=120
-      - --limit-request-line=4094
-      - --limit-request-field_size=8190
-      - --access-logfile=-
-      - --error-logfile=-
-      - superset.app:create_app()
+      - /bin/sh
+      - -ec
+      - python /app/pythonpath/check_release_identity.py && exec gunicorn --bind=0.0.0.0:8088 --workers=${SUPERSET_WEB_WORKERS:-4} --worker-class=gevent --timeout=120 --limit-request-line=4094 --limit-request-field_size=8190 --access-logfile=- --error-logfile=- 'superset.app:create_app()'
     ports:
       - "127.0.0.1:${SUPERSET_LOOPBACK_PORT:-8088}:8088"
     healthcheck:
@@ -101,12 +130,9 @@ services:
   superset-worker:
     <<: *superset-common
     command:
-      - celery
-      - --app=superset.tasks.celery_app:app
-      - worker
-      - --loglevel=INFO
-      - --concurrency=${SUPERSET_WORKER_CONCURRENCY:-2}
-      - --max-tasks-per-child=100
+      - /bin/sh
+      - -ec
+      - python /app/pythonpath/check_release_identity.py && exec celery --app=superset.tasks.celery_app:app worker --loglevel=INFO --concurrency=${SUPERSET_WORKER_CONCURRENCY:-2} --max-tasks-per-child=100
     labels:
       codestra.business: platform
       codestra.application: analytics
@@ -130,12 +156,9 @@ services:
     <<: *superset-common
     pids_limit: 128
     command:
-      - celery
-      - --app=superset.tasks.celery_app:app
-      - beat
-      - --loglevel=INFO
-      - --pidfile=/tmp/celerybeat.pid
-      - --schedule=/app/superset_home/celerybeat-schedule
+      - /bin/sh
+      - -ec
+      - python /app/pythonpath/check_release_identity.py && exec celery --app=superset.tasks.celery_app:app beat --loglevel=INFO --pidfile=/tmp/celerybeat.pid --schedule=/app/superset_home/celerybeat-schedule
     labels:
       codestra.business: platform
       codestra.application: analytics

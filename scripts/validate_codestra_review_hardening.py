@@ -10,9 +10,8 @@ from typing import Iterator
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ACTIVE_CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py"
-EXAMPLE_CONFIG = ROOT / "codestra" / "runtime-v1" / "superset_config.py.example"
 SECURITY_MANAGER = (
-    ROOT / "codestra" / "runtime-v1" / "codestra_security_manager_v2.py"
+    ROOT / "codestra" / "runtime-v1" / "codestra_security_manager.py"
 )
 PROFILE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "validate-codestra-enterprise-profile.yml"
@@ -142,15 +141,12 @@ def validate_workflow() -> None:
 
 
 def main() -> None:
-    for path, label in (
-        (ACTIVE_CONFIG, "active config"),
-        (EXAMPLE_CONFIG, "candidate config"),
-    ):
+    for path, label in ((ACTIVE_CONFIG, "canonical config"),):
         text = read(path)
         tree = parse(path)
         validate_pkce(tree, label)
         validate_feature_flags(tree, label)
-        catalogue_text = read(SECURITY_MANAGER if path == ACTIVE_CONFIG else path)
+        catalogue_text = read(SECURITY_MANAGER)
         validate_business_roles(text, catalogue_text, label)
     validate_workflow()
     print("CODESTRA_SUPERSET_REVIEW_HARDENING_PASS=1")

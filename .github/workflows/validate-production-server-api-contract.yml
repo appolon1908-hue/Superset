@@ -4,8 +4,9 @@ on:
   pull_request:
     paths:
       - codestra/runtime-v1/check_metadata_readiness.py
-      - codestra/runtime-v1/compose.candidate.yaml
-      - codestra/runtime-v1/superset_config.py.example
+      - codestra/runtime-v1/check_release_identity.py
+      - codestra/runtime-v1/compose.production.yaml
+      - codestra/runtime-v1/superset_config.py
       - docs/CODESTRA_PRODUCTION_SERVER_API_CONTRACT.md
       - scripts/validate_codestra_superset_readiness.py
       - .github/workflows/validate-production-server-api-contract.yml
@@ -13,8 +14,9 @@ on:
     branches: [development, test, staging, production, main]
     paths:
       - codestra/runtime-v1/check_metadata_readiness.py
-      - codestra/runtime-v1/compose.candidate.yaml
-      - codestra/runtime-v1/superset_config.py.example
+      - codestra/runtime-v1/check_release_identity.py
+      - codestra/runtime-v1/compose.production.yaml
+      - codestra/runtime-v1/superset_config.py
       - docs/CODESTRA_PRODUCTION_SERVER_API_CONTRACT.md
       - scripts/validate_codestra_superset_readiness.py
       - .github/workflows/validate-production-server-api-contract.yml
@@ -31,8 +33,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.13'
       - name: Compile and validate metadata readiness implementation

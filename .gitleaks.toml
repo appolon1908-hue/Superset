@@ -1,0 +1,8 @@
+title = "Codestra Superset secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Byte-preserved Apache upstream source is bound by its Git tree and scanned upstream"
+paths = ['''^upstream/''']

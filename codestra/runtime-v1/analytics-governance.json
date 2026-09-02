@@ -31,16 +31,16 @@
     "data_quality_status"
   ],
   "certifiedDatasets": [
-    {"name": "executive_portfolio_daily", "grain": "business-day", "purpose": "executive scorecard", "crossBusiness": "aggregate-only"},
-    {"name": "service_slo_daily", "grain": "business-service-day", "purpose": "availability and error budget", "crossBusiness": "admin-only"},
-    {"name": "incident_history", "grain": "business-incident", "purpose": "incident trends and response performance", "crossBusiness": "admin-only"},
-    {"name": "deployment_change_outcomes", "grain": "business-deployment", "purpose": "release quality and rollback trends", "crossBusiness": "admin-only"},
-    {"name": "communication_delivery_daily", "grain": "business-channel-provider-day", "purpose": "Klyrow and Telnexa delivery quality", "crossBusiness": "aggregate-only"},
-    {"name": "contact_center_sla_daily", "grain": "business-campaign-day", "purpose": "campaign-isolated service levels", "crossBusiness": "admin-only"},
-    {"name": "provider_performance_daily", "grain": "business-provider-day", "purpose": "external dependency reliability", "crossBusiness": "aggregate-only"},
-    {"name": "infrastructure_capacity_daily", "grain": "business-service-day", "purpose": "capacity, saturation, and cost planning", "crossBusiness": "admin-only"},
-    {"name": "security_control_daily", "grain": "business-control-day", "purpose": "control effectiveness without secrets or payloads", "crossBusiness": "security-auditor-only"},
-    {"name": "business_cost_allocation_monthly", "grain": "business-service-month", "purpose": "showback and budget planning", "crossBusiness": "executive-aggregate-only"}
+    {"name": "executive_portfolio_daily", "grain": "business-day", "purpose": "executive scorecard", "crossBusiness": "aggregate-only", "owner": "business-intelligence", "sourceLineage": "approved-reporting.portfolio.executive_daily", "freshnessSlaMinutes": 1440, "sensitivity": "internal-aggregate", "readOnly": true},
+    {"name": "service_slo_daily", "grain": "business-service-day", "purpose": "availability and error budget", "crossBusiness": "admin-only", "owner": "site-reliability", "sourceLineage": "approved-reporting.observability.service_slo_daily", "freshnessSlaMinutes": 60, "sensitivity": "internal-operational", "readOnly": true},
+    {"name": "incident_history", "grain": "business-incident", "purpose": "incident trends and response performance", "crossBusiness": "admin-only", "owner": "site-reliability", "sourceLineage": "approved-reporting.observability.incident_history", "freshnessSlaMinutes": 15, "sensitivity": "restricted-operational", "readOnly": true},
+    {"name": "deployment_change_outcomes", "grain": "business-deployment", "purpose": "release quality and rollback trends", "crossBusiness": "admin-only", "owner": "platform-engineering", "sourceLineage": "approved-reporting.delivery.deployment_change_outcomes", "freshnessSlaMinutes": 60, "sensitivity": "internal-operational", "readOnly": true},
+    {"name": "communication_delivery_daily", "grain": "business-channel-provider-day", "purpose": "Klyrow and Telnexa delivery quality", "crossBusiness": "aggregate-only", "owner": "communications-platform", "sourceLineage": "approved-reporting.communications.delivery_daily", "freshnessSlaMinutes": 60, "sensitivity": "restricted-aggregate", "readOnly": true},
+    {"name": "contact_center_sla_daily", "grain": "business-campaign-day", "purpose": "campaign-isolated service levels", "crossBusiness": "admin-only", "owner": "contact-center-operations", "sourceLineage": "approved-reporting.contact_center.sla_daily", "freshnessSlaMinutes": 1440, "sensitivity": "restricted-aggregate", "readOnly": true},
+    {"name": "provider_performance_daily", "grain": "business-provider-day", "purpose": "external dependency reliability", "crossBusiness": "aggregate-only", "owner": "vendor-management", "sourceLineage": "approved-reporting.providers.performance_daily", "freshnessSlaMinutes": 1440, "sensitivity": "internal-aggregate", "readOnly": true},
+    {"name": "infrastructure_capacity_daily", "grain": "business-service-day", "purpose": "capacity, saturation, and cost planning", "crossBusiness": "admin-only", "owner": "platform-engineering", "sourceLineage": "approved-reporting.infrastructure.capacity_daily", "freshnessSlaMinutes": 1440, "sensitivity": "internal-operational", "readOnly": true},
+    {"name": "security_control_daily", "grain": "business-control-day", "purpose": "control effectiveness without secrets or payloads", "crossBusiness": "security-auditor-only", "owner": "security-governance", "sourceLineage": "approved-reporting.security.control_daily", "freshnessSlaMinutes": 1440, "sensitivity": "restricted-security", "readOnly": true},
+    {"name": "business_cost_allocation_monthly", "grain": "business-service-month", "purpose": "showback and budget planning", "crossBusiness": "executive-aggregate-only", "owner": "finance-operations", "sourceLineage": "approved-reporting.finance.business_cost_allocation_monthly", "freshnessSlaMinutes": 43200, "sensitivity": "restricted-financial", "readOnly": true}
   ],
   "rowLevelSecurity": {
     "column": "codestra_business",
