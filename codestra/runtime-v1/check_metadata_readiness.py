@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed Superset liveness and metadata-database readiness probe.
-
-The native `/health` route is a process liveness signal only. This probe combines
-that signal with a real read-only `SELECT 1` against the configured metadata
-store. It never prints the metadata URI or database exception text.
-"""
+"""Fail-closed Superset liveness and metadata-database readiness probe."""
 
 from __future__ import annotations
 
@@ -12,6 +7,7 @@ import os
 import sys
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from sqlalchemy import create_engine, text
 
@@ -32,11 +28,24 @@ def check_liveness() -> None:
     url = os.environ.get(
         "SUPERSET_LIVENESS_URL", "http://127.0.0.1:8088/health"
     ).strip()
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"127.0.0.1", "localhost"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path != "/health"
+        or parsed.query
+        or parsed.fragment
+    ):
+        fail("unsafe_liveness_url")
+
+    request = urllib.request.Request(url, headers={"Accept": "text/plain"})
     try:
-        with urllib.request.urlopen(url, timeout=4) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=4) as response:  # noqa: S310
             if response.status != 200:
                 fail("liveness_status")
-            body = response.read(256)
+            body = response.read(257)
             if len(body) > 256:
                 fail("liveness_response_too_large")
     except SystemExit:

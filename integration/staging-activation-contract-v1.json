@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "suite_id": "codestra-controlled-intake-monitoring-v1",
   "repository": "appolon1908-hue/Superset",
   "component": "superset",
@@ -31,14 +31,28 @@
     "manifest_signature": "sigstore-keyless-bundle",
     "transparency_log_required": true,
     "vulnerability_policy": "fail-high-or-critical-with-fix",
-    "platforms": ["linux/amd64"],
+    "platforms": [
+      "linux/amd64"
+    ],
     "schema_or_migration_head": "0003_immutable_event_ledger",
     "external_effects_default": "disabled",
     "required_digest_pattern": "sha256:<64-lowercase-hex>"
   },
   "private_endpoints": [
-    {"method": "GET", "path": "/metrics", "client_id": "monitoring-readonly", "scope": "metrics.read", "public_exposure": false},
-    {"method": "GET", "path": "/v1/runtime/safety", "client_id": "monitoring-readonly", "scope": "health.read", "public_exposure": false}
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "client_id": "monitoring-readonly",
+      "scope": "metrics.read",
+      "public_exposure": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/runtime/safety",
+      "client_id": "monitoring-readonly",
+      "scope": "health.read",
+      "public_exposure": false
+    }
   ],
   "staging_credentials": {
     "storage": "OUTSIDE_GIT",
@@ -51,9 +65,32 @@
   "staging_evidence": {
     "collector_repository": "appolon1908-hue/Codestra-Prometheus",
     "collector_branch": "development",
+    "collector_workflow_path": ".github/workflows/controlled-intake-staging-activation-gate.yml",
+    "artifact_name_prefix": "controlled-intake-staging-evidence-",
+    "manifest_path": "manifest.json",
+    "manifest_schema_version": "1.0",
+    "manifest_attestation_required": true,
+    "archive_checksum_required": true,
+    "manifest_checksum_required": true,
     "checksum": null,
-    "state": "PENDING_RUNTIME_EXECUTION",
-    "must_verify": ["exact_middleware_source_sha", "immutable_image_digest", "signed_release_manifest", "sigstore_identity", "private_network_only", "metrics_read_scope", "health_read_scope", "unauthorized_request_denied", "wrong_token_denied", "complete_metric_catalogue", "bounded_cardinality", "no_pii_or_secret_exposure", "all_external_effects_disabled", "staging_soak", "rollback_proof"]
+    "state": "PENDING_ATTESTED_RUNTIME_EXECUTION",
+    "must_verify": [
+      "exact_middleware_source_sha",
+      "immutable_image_digest",
+      "signed_release_manifest",
+      "sigstore_identity",
+      "private_network_only",
+      "metrics_read_scope",
+      "health_read_scope",
+      "unauthorized_request_denied",
+      "wrong_token_denied",
+      "complete_metric_catalogue",
+      "bounded_cardinality",
+      "no_pii_or_secret_exposure",
+      "all_external_effects_disabled",
+      "staging_soak",
+      "rollback_proof"
+    ]
   },
   "activation_policy": {
     "prometheus_target_current_state": "pending",
@@ -66,7 +103,10 @@
     "blackbox_must_remain_pending": true,
     "blackbox_activation_requires_independent_review": true,
     "blackbox_probe_must_be_side_effect_free": true,
-    "blackbox_allowed_methods": ["GET", "HEAD"],
+    "blackbox_allowed_methods": [
+      "GET",
+      "HEAD"
+    ],
     "production_activation_authorized": false
   },
   "runtime_effects": {

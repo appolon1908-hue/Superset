@@ -1,13 +1,21 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "component": "apache-superset",
   "codestra_repository": "appolon1908-hue/Superset",
   "upstream_repository": "apache/superset",
   "upstream_clone_url": "https://github.com/apache/superset.git",
+  "tracking_ref": "master",
   "upstream_ref": "master",
   "import_path": "upstream",
-  "import_mode": "shallow-source-snapshot",
+  "import_mode": "pinned-shallow-source-snapshot",
+  "lock_file": "CODESTRA_UPSTREAM_LOCK.json",
   "preserve_upstream_license": true,
-  "branches": ["main", "staging", "production"],
+  "branches": [
+    "development",
+    "test",
+    "staging",
+    "production",
+    "main"
+  ],
   "deployment_enabled": false
 }
