@@ -62,13 +62,17 @@ jobs:
           assert 'Only the Codestra Keycloak provider is approved' in security
           assert 'email_verified' in security
           assert 'No approved Codestra Superset role was supplied' in security
-          assert 'protocol/openid-connect/userinfo' in security
+          assert 'remote.get("userinfo")' in security
           for business in required_businesses:
               assert business in security
           for name, service in compose["services"].items():
-              assert "ports" not in service, name
               assert service["read_only"] is True, name
               assert "ALL" in service["cap_drop"], name
+          assert compose["services"]["superset-web"]["ports"] == [
+              "127.0.0.1:${SUPERSET_LOOPBACK_PORT:-8088}:8088"
+          ]
+          assert "ports" not in compose["services"]["superset-worker"]
+          assert "ports" not in compose["services"]["superset-beat"]
           assert set(compose["services"]) == {"superset-web", "superset-worker", "superset-beat"}
           assert all(set(value) == {"file"} for value in compose["secrets"].values())
           assert "env_file" not in compose_text
