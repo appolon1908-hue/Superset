@@ -41,9 +41,12 @@ REQUIRED = (
     "requirements-runtime.txt",
     "requirements-validation.txt",
     "scripts/build_and_inspect_locked_image.sh",
+    "scripts/run_disposable_integration.sh",
     "scripts/validate_runtime_identity.py",
+    "scripts/verify_release_identity.sh",
     "tests/superset_startup_config.py",
     "tests/validate_bootstrap_runtime.py",
+    "tests/validate_celery_runtime.py",
 )
 
 
@@ -63,6 +66,15 @@ def require_tokens(path: str, tokens: tuple[str, ...]) -> str:
     for token in tokens:
         if token not in text:
             fail(f"{path} omits required control: {token}")
+    return text
+
+
+def validate_python(path: str) -> str:
+    text = (ROOT / path).read_text(encoding="utf-8")
+    try:
+        ast.parse(text, filename=path)
+    except SyntaxError as exc:
+        fail(f"invalid Python {path}: line {exc.lineno}")
     return text
 
 
@@ -93,14 +105,8 @@ def validate_upstream_tree() -> None:
         fail("vendored upstream tree differs from CODESTRA_UPSTREAM_LOCK.json")
 
 
-def validate_bootstrap() -> None:
-    path = ROOT / "codestra/runtime-v1/bootstrap_roles.py"
-    source = path.read_text(encoding="utf-8")
-    try:
-        ast.parse(source, filename=str(path))
-    except SyntaxError as exc:
-        fail(f"invalid bootstrap Python: line {exc.lineno}")
-
+def validate_bootstrap_and_celery() -> None:
+    source = validate_python("codestra/runtime-v1/bootstrap_roles.py")
     if "from superset import app" in source:
         fail("bootstrap imports the superset.app module as a Flask application")
     for token in (
@@ -114,22 +120,31 @@ def validate_bootstrap() -> None:
         if token not in source:
             fail(f"role bootstrap omits required factory/reconciliation control: {token}")
 
-    runtime_validator = require_tokens(
-        "tests/validate_bootstrap_runtime.py",
-        (
-            "from superset.app import create_app",
-            "Codestra Security Auditor",
-            "Viewer",
-            "Analyst",
-            "permission_identities(viewer) != gamma_permissions",
-            "permission_identities(analyst) != alpha_permissions",
-            "CODESTRA_SUPERSET_BOOTSTRAP_RUNTIME_VALIDATION=PASS",
-        ),
-    )
-    try:
-        ast.parse(runtime_validator, filename="tests/validate_bootstrap_runtime.py")
-    except SyntaxError as exc:
-        fail(f"invalid bootstrap runtime validator: line {exc.lineno}")
+    role_validator = validate_python("tests/validate_bootstrap_runtime.py")
+    for token in (
+        "from superset.app import create_app",
+        "Codestra Security Auditor",
+        "Viewer",
+        "Analyst",
+        "permission_identities(viewer) != gamma_permissions",
+        "permission_identities(analyst) != alpha_permissions",
+        "CODESTRA_SUPERSET_BOOTSTRAP_RUNTIME_VALIDATION=PASS",
+    ):
+        if token not in role_validator:
+            fail(f"role runtime validator omits: {token}")
+
+    celery_validator = validate_python("tests/validate_celery_runtime.py")
+    for token in (
+        "celery_app.loader.import_default_modules()",
+        "sql_lab.get_sql_results",
+        "reports.scheduler",
+        "reports.prune_log",
+        "version_history.prune_old_versions",
+        "deletion_retention.purge_soft_deleted",
+        "CODESTRA_SUPERSET_CELERY_RUNTIME_VALIDATION=PASS",
+    ):
+        if token not in celery_validator:
+            fail(f"Celery runtime validator omits: {token}")
 
 
 def validate_signed_image() -> None:
@@ -206,12 +221,66 @@ def validate_signed_image() -> None:
             "superset db upgrade",
             "superset init",
             "tests/validate_bootstrap_runtime.py",
-            "SUPERSET_BOOTSTRAP_RUNTIME=PASS",
+            "tests/validate_celery_runtime.py",
+            "SUPERSET_BOOTSTRAP_AND_CELERY_RUNTIME=PASS",
             "SUPERSET_LOCKED_IMAGE_INSPECTION=PASS",
         ),
     )
     if inspection.count("python /app/pythonpath/bootstrap_roles.py") < 2:
         fail("exact-image validation must execute role bootstrap twice")
+
+
+def validate_release_identity() -> None:
+    source = require_tokens(
+        "scripts/verify_release_identity.sh",
+        (
+            "ghcr\\.io/appolon1908-hue/superset-superset@sha256:",
+            "org.opencontainers.image.source",
+            "org.opencontainers.image.revision",
+            "https://github.com/appolon1908-hue/Superset",
+            "10001:10001",
+            ".RepoDigests",
+            "SUPERSET_RELEASE_IDENTITY=PASS",
+        ),
+    )
+    for forbidden in (":latest", "docker pull", "--privileged", "network_mode"):
+        if forbidden in source:
+            fail(f"release identity readback contains forbidden behavior: {forbidden}")
+
+
+def validate_disposable_integration() -> None:
+    source = require_tokens(
+        "scripts/run_disposable_integration.sh",
+        (
+            'test "$(git rev-parse HEAD)" = "$source_sha"',
+            "docker network create --internal",
+            "install -d -m 0711",
+            "chmod 0444",
+            "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94",
+            "redis:8.2.1-alpine@sha256:987c376c727652f99625c7d205a1cba3cb2c53b92b0b62aade2bd48ee1593232",
+            "--read-only",
+            "superset db upgrade",
+            "superset init",
+            "tests/validate_bootstrap_runtime.py",
+            "tests/validate_celery_runtime.py",
+            "check_metadata_readiness.py",
+            "SUPERSET_LIVENESS_AND_METADATA_READINESS=PASS",
+            "pg_dump",
+            "pg_restore",
+            "ENABLE ROW LEVEL SECURITY",
+            "FORCE ROW LEVEL SECURITY",
+            "SET ROLE analytics_readonly",
+            "unauthorized-business",
+            "read-only analytics role unexpectedly performed a write",
+            "SUPERSET_DISPOSABLE_MIGRATION_READINESS_BACKUP_RESTORE_RLS_WRITE_DENIAL=PASS",
+        ),
+    )
+    if "mkdir -m 0700" in source or "install -d -m 0700" in source:
+        fail("disposable secret directory is not traversable by UID 10001")
+    if source.count("python /app/pythonpath/bootstrap_roles.py") < 2:
+        fail("disposable integration must prove bootstrap idempotency")
+    if "--network host" in source or "-p " in source or "--publish" in source:
+        fail("disposable integration may not expose its internal network")
 
 
 def validate_compose_and_release() -> None:
@@ -259,10 +328,12 @@ def validate_compose_and_release() -> None:
     for token in (
         'test "$(git rev-parse HEAD)" = "$HEAD_SHA"',
         'bash scripts/build_and_inspect_locked_image.sh "$HEAD_SHA"',
+        'bash scripts/run_disposable_integration.sh "$HEAD_SHA"',
+        "validate-disposable-integration:",
         'bash scripts/build_and_inspect_locked_image.sh "$GITHUB_SHA"',
     ):
         if token not in pull_request_workflow:
-            fail(f"exact-head/synthetic-merge image validation omits: {token}")
+            fail(f"exact-head/synthetic-merge validation omits: {token}")
 
     protected_workflow = (
         ROOT / ".github/workflows/validate-repository-readiness-protected.yml"
@@ -290,13 +361,17 @@ def main() -> None:
         fail(f"missing readiness files: {missing}")
 
     validate_upstream_tree()
-    validate_bootstrap()
+    validate_bootstrap_and_celery()
     validate_signed_image()
+    validate_release_identity()
+    validate_disposable_integration()
     validate_compose_and_release()
 
     print("SUPERSET_REPOSITORY_READINESS_SOURCE=PASS")
     print("UPSTREAM_TREE_IDENTITY=PASS")
-    print("BOOTSTRAP_RUNTIME_GATE=REQUIRED")
+    print("BOOTSTRAP_AND_CELERY_RUNTIME_GATE=REQUIRED")
+    print("DISPOSABLE_POSTGRES_REDIS_INTEGRATION=REQUIRED")
+    print("SIGNED_RELEASE_IDENTITY_READBACK=REQUIRED")
     print("ARTIFACT_MODEL=SIGNED_DERIVED_IMAGE")
     print("PRODUCTION_ACTIVATION=NO")
 
