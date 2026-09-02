@@ -189,15 +189,15 @@ CELERY_BEAT_SCHEDULER_EXPIRES = timedelta(weeks=1)
 class CeleryConfig:
     broker_url = REDIS_URL
     result_backend = REDIS_URL
+    # Keep this list aligned to the executable Apache Superset 6.1.0 release.
+    # Newer source-only task modules may not be imported until the base image is
+    # upgraded and exact-image worker/beat validation proves compatibility.
     imports = (
         "superset.sql_lab",
-        "superset.tasks.deletion_retention",
         "superset.tasks.scheduler",
         "superset.tasks.thumbnails",
         "superset.tasks.cache",
         "superset.tasks.slack",
-        "superset.tasks.export_dashboard_excel",
-        "superset.tasks.version_history_retention",
     )
     task_acks_late = True
     worker_prefetch_multiplier = 1
@@ -220,14 +220,6 @@ class CeleryConfig:
         },
         "reports.prune_log": {
             "task": "reports.prune_log",
-            "schedule": crontab(minute=0, hour=0),
-        },
-        "version_history.prune_old_versions": {
-            "task": "version_history.prune_old_versions",
-            "schedule": crontab(minute=0, hour=3),
-        },
-        "deletion_retention.purge_soft_deleted": {
-            "task": "deletion_retention.purge_soft_deleted",
             "schedule": crontab(minute=0, hour=0),
         },
     }
