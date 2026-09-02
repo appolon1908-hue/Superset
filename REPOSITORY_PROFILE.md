@@ -22,6 +22,8 @@ write-capable production databases, or cross-business data.
 ## Owns
 
 - Superset runtime configuration and supported branding
+- Signed configuration image derived from the exact official Apache Superset
+  6.1.0 digest with hash-locked runtime extras
 - Keycloak OIDC/PKCE mapping for approved global and business roles
 - Curated datasets, charts, dashboards, semantic metrics, and Superset RLS
 - Query limits, cache policy, metadata readiness, audit, backup/restore,
