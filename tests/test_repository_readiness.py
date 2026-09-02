@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 import yaml
@@ -56,6 +57,38 @@ class ReadinessTests(unittest.TestCase):
         self.assertIn("org.opencontainers.image.revision", source)
         self.assertIn(".RepoDigests", source)
         self.assertNotIn(":latest", source)
+
+    def test_release_identity_gate_binds_digest_and_revision(self) -> None:
+        digest = "3" * 64
+        source_sha = "4" * 40
+        image = f"ghcr.io/appolon1908-hue/superset-superset@sha256:{digest}"
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Path(directory) / "docker"
+            fake.write_text(
+                "#!/usr/bin/env bash\n"
+                "case \"$*\" in\n"
+                "  *org.opencontainers.image.source*) echo https://github.com/appolon1908-hue/Superset ;;\n"
+                "  *org.opencontainers.image.revision*) echo \"$FAKE_SOURCE_SHA\" ;;\n"
+                "  *Config.User*) echo 10001:10001 ;;\n"
+                "  *RepoDigests*) printf '[\"%s\"]\\n' \"$FAKE_IMAGE\" ;;\n"
+                "  *) exit 1 ;;\n"
+                "esac\n"
+            )
+            fake.chmod(0o755)
+            environment = dict(os.environ)
+            environment.update(
+                PATH=f"{directory}:{environment['PATH']}",
+                FAKE_IMAGE=image,
+                FAKE_SOURCE_SHA=source_sha,
+            )
+            subprocess.run(
+                ["bash", "scripts/verify_release_identity.sh", image, source_sha],
+                cwd=ROOT,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
 
     def test_disposable_database_gate_keeps_stdin_and_denies_external_runtime(self) -> None:
         source = (ROOT / "scripts/run_disposable_integration.sh").read_text()
