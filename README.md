@@ -26,7 +26,10 @@ The executable authority is a Codestra image derived from the exact official
 Apache Superset 6.1.0 image digest recorded in
 `codestra/release/runtime-base.lock.json`. The derived image:
 
-- installs only the hash-locked `gevent` and PostgreSQL runtime requirements;
+- installs hash-locked `gevent`, PostgreSQL, and Authlib OAuth runtime
+  requirements; Authlib is installed without dependency resolution while the
+  immutable base image supplies and runtime-verifies the reviewed cryptography
+  version;
 - embeds the reviewed Superset configuration, Keycloak security manager,
   metadata-readiness probe, role bootstrap, runtime contract, and release lock;
 - runs as UID/GID `10001:10001` with a read-only root filesystem, dropped
@@ -47,6 +50,8 @@ tree SHA.
 | `upstream/` | Byte-preserved Apache Superset source snapshot for audit and upgrades |
 | `CODESTRA_UPSTREAM_LOCK.json` | Exact imported source commit and tree identity |
 | `codestra/release/` | Immutable upstream-image lock and deterministic derived-image manifest |
+| `requirements-runtime.in` / `.txt` | Exact hash-locked gevent and PostgreSQL runtime supplement |
+| `requirements-oauth.in` / `.txt` | Exact hash-locked Authlib OAuth supplement |
 | `codestra/runtime-v1/Dockerfile` | Codestra signed-image build authority |
 | `codestra/runtime-v1/compose.candidate.yaml` | Inactive, deploy-only, file-secret runtime topology |
 | `codestra/runtime-v1/superset_config.py.example` | Configuration embedded in the derived image |
@@ -54,7 +59,7 @@ tree SHA.
 | `codestra/runtime-v1/codestra_security_manager.py` | Fail-closed Keycloak identity and role-claim mapping |
 | `codestra/runtime-v1/bootstrap_roles.py` | Idempotent business-role reconciliation after explicit initialization |
 | `codestra/runtime-v1/check_metadata_readiness.py` | Web liveness plus metadata-database `SELECT 1` readiness |
-| `scripts/build_and_inspect_locked_image.sh` | Exact image, startup, migration, role, Celery, and embedded-file proof |
+| `scripts/build_and_inspect_locked_image.sh` | Exact image, startup, OAuth, migration, role, Celery, and embedded-file proof |
 | `scripts/run_disposable_integration.sh` | Internal PostgreSQL/Redis readiness, backup/restore, RLS, and write-denial proof |
 | `scripts/verify_release_identity.sh` | Post-signature OCI source, revision, user, and digest readback |
 | `codestra/api/` | Codestra read-only service/API contract |
@@ -72,6 +77,9 @@ migration, `superset init`, and Codestra role reconciliation are isolated in the
 
 - Keycloak Authorization Code with PKCE S256 is required.
 - Userinfo is fetched from the absolute configured issuer endpoint.
+- The exact derived image must contain Authlib 1.6.12 and the reviewed
+  base-image cryptography version before Superset may construct its OAuth
+  security manager.
 - Missing subject, unverified email, malformed role claims, unknown issuer, and
   identities without an approved role fail closed.
 - Each Codestra business receives unique viewer and analyst roles. The bootstrap
@@ -109,11 +117,13 @@ bash scripts/build_and_inspect_locked_image.sh "$(git rev-parse HEAD)"
 bash scripts/run_disposable_integration.sh "$(git rev-parse HEAD)"
 ```
 
-The exact-image gate builds the locked image, starts Superset without network
-access on a read-only filesystem, migrates a disposable metadata database, runs
-`superset init`, executes the Codestra role bootstrap twice, verifies every
-business role and permission mirror, validates Celery task and beat
-registration, and compares the image's embedded files to the reviewed source.
+The exact-image gate builds the locked image; verifies Superset, Authlib,
+cryptography, gevent, PostgreSQL, and Gunicorn runtime imports; starts Superset
+without network access on a read-only filesystem; migrates a disposable metadata
+database; runs `superset init`; executes the Codestra role bootstrap twice;
+verifies every business role and permission mirror; validates Celery task and
+beat registration; and compares the image's embedded files to the reviewed
+source.
 
 The separate disposable integration uses only an internal Docker network and
 pinned PostgreSQL and Redis images. It proves real metadata readiness, backup and
