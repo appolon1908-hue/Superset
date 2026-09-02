@@ -100,6 +100,43 @@ class ReadinessTests(unittest.TestCase):
             2,
         )
         self.assertIn("tests/validate_bootstrap_runtime.py", inspection)
+        self.assertIn("tests/validate_celery_runtime.py", inspection)
+
+    def test_disposable_integration_is_private_and_secret_safe(self) -> None:
+        integration = (
+            ROOT / "scripts/run_disposable_integration.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("docker network create --internal", integration)
+        self.assertIn("install -d -m 0711", integration)
+        self.assertNotIn("mkdir -m 0700", integration)
+        self.assertNotIn("install -d -m 0700", integration)
+        self.assertNotIn("--network host", integration)
+        self.assertNotIn("--publish", integration)
+        self.assertIn("chmod 0444", integration)
+        self.assertGreaterEqual(
+            integration.count("python /app/pythonpath/bootstrap_roles.py"),
+            2,
+        )
+        for token in (
+            "pg_dump",
+            "pg_restore",
+            "ENABLE ROW LEVEL SECURITY",
+            "FORCE ROW LEVEL SECURITY",
+            "unauthorized-business",
+            "validate_celery_runtime.py",
+        ):
+            self.assertIn(token, integration)
+
+    def test_release_identity_is_digest_and_revision_bound(self) -> None:
+        source = (
+            ROOT / "scripts/verify_release_identity.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("superset-superset@sha256:", source)
+        self.assertIn("org.opencontainers.image.source", source)
+        self.assertIn("org.opencontainers.image.revision", source)
+        self.assertIn(".RepoDigests", source)
+        self.assertIn("10001:10001", source)
+        self.assertNotIn(":latest", source)
 
 
 if __name__ == "__main__":
