@@ -249,14 +249,13 @@ def validate_python_configuration() -> None:
         '"content_security_policy_nonce_in": ["script-src"]',
         "from celery.schedules import crontab",
         '"superset.sql_lab"',
-        '"superset.tasks.deletion_retention"',
         '"superset.tasks.scheduler"',
-        '"superset.tasks.version_history_retention"',
+        '"superset.tasks.thumbnails"',
+        '"superset.tasks.cache"',
+        '"superset.tasks.slack"',
         '"sql_lab.get_sql_results"',
         '"reports.scheduler"',
         '"reports.prune_log"',
-        '"version_history.prune_old_versions"',
-        '"deletion_retention.purge_soft_deleted"',
     )
     for fragment in required_config:
         if fragment not in image_text:
@@ -270,6 +269,11 @@ def validate_python_configuration() -> None:
         "redis://:",
         "smtp_password",
         "InsecureSkipVerify",
+        '"superset.tasks.deletion_retention"',
+        '"superset.tasks.version_history_retention"',
+        '"superset.tasks.export_dashboard_excel"',
+        '"deletion_retention.purge_soft_deleted"',
+        '"version_history.prune_old_versions"',
     )
     lowered = (image_text + manager_text).lower()
     for fragment in forbidden_config:

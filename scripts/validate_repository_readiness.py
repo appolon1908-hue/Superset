@@ -146,8 +146,6 @@ def validate_bootstrap_and_celery() -> None:
         "sql_lab.get_sql_results",
         "reports.scheduler",
         "reports.prune_log",
-        "version_history.prune_old_versions",
-        "deletion_retention.purge_soft_deleted",
         "CODESTRA_SUPERSET_CELERY_RUNTIME_VALIDATION=PASS",
     ):
         if token not in celery_validator:
