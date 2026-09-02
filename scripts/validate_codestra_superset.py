@@ -275,6 +275,17 @@ def validate_compose() -> None:
         fail("Superset background services may not publish ports")
     if not services["superset-web"].get("healthcheck"):
         fail("Superset web service requires a healthcheck")
+    common = compose.get("x-superset-common", {})
+    if any(str(volume).endswith(":/app/pythonpath/superset_config.py:ro") for volume in common.get("volumes", [])):
+        fail("Superset configuration must be embedded in the immutable image")
+    secret_definitions = compose.get("secrets", {})
+    if set(secret_definitions) != {
+        "superset_secret_key", "superset_metadata_database_uri",
+        "superset_redis_url", "superset_oidc_client_secret",
+    }:
+        fail("Superset top-level secret-file set is incomplete")
+    if any(set(value) != {"file"} or not str(value["file"]).startswith("${SUPERSET_") for value in secret_definitions.values()):
+        fail("Superset credentials must be supplied only as mounted files")
 
     serialized = require_file(COMPOSE)
     for fragment in (
@@ -285,6 +296,7 @@ def validate_compose() -> None:
         "0.0.0.0:8088:8088",
         "SUPERSET_SECRET_KEY=",
         "SUPERSET_OIDC_CLIENT_SECRET=",
+        "env_file:",
     ):
         if fragment in serialized:
             fail(f"Superset candidate contains forbidden content: {fragment}")
