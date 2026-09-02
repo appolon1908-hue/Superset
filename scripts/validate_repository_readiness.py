@@ -15,7 +15,8 @@ REQUIRED = (
     ".gitleaks.toml", "codestra/release/image-build.v1.json",
     "codestra/release/runtime-base.lock.json", ".github/workflows/release-image.yml",
     "scripts/build_and_inspect_locked_image.sh", "scripts/validate_runtime_identity.py",
-    "requirements-validation.txt",
+    "requirements-validation.txt", "requirements-runtime.in", "requirements-runtime.txt",
+    "tests/superset_startup_config.py",
 )
 
 def fail(message: str) -> None:
@@ -54,6 +55,29 @@ def main() -> None:
     for token in ("FROM ${SUPERSET_BASE_IMAGE}", "superset_config.py.example", "runtime-base.lock.json", "USER 10001:10001"):
         if token not in dockerfile:
             fail(f"Dockerfile release boundary missing: {token}")
+    for token in ("requirements-runtime.txt", "uv pip install", "--require-hashes", "import gevent, psycopg2"):
+        if token not in dockerfile:
+            fail(f"locked Superset runtime dependency boundary missing: {token}")
+    runtime_input = (ROOT / "requirements-runtime.in").read_text(encoding="utf-8").splitlines()
+    if runtime_input != [
+        "gevent==24.2.1",
+        "greenlet==3.1.1",
+        "psycopg2-binary==2.9.9",
+        "setuptools==80.9.0",
+        "zope-event==5.0",
+        "zope-interface==5.4.0",
+    ]:
+        fail("Superset 6.1.0 runtime extras differ from official release constraints")
+    runtime_lock = (ROOT / "requirements-runtime.txt").read_text(encoding="utf-8")
+    for dependency in runtime_input:
+        if dependency not in runtime_lock:
+            fail(f"runtime dependency lock omits {dependency}")
+    if "--hash=sha256:" not in runtime_lock:
+        fail("runtime dependency lock must contain exact distribution hashes")
+    inspection = (ROOT / "scripts/build_and_inspect_locked_image.sh").read_text(encoding="utf-8")
+    for token in ("importlib.metadata, gevent, psycopg2", "from superset.app import create_app", "--network none", "--read-only"):
+        if token not in inspection:
+            fail(f"Superset runtime inspection omits: {token}")
     compose = yaml.safe_load((ROOT / "codestra/runtime-v1/compose.candidate.yaml").read_text(encoding="utf-8"))
     common = compose.get("x-superset-common", {})
     if "build" in common or "env_file" in common or common.get("privileged") is True:
