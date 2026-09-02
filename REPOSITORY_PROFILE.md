@@ -25,7 +25,9 @@ production databases, or cross-business data.
 - exact upstream source tree, release commit, OCI index, and `linux/amd64`
   manifest locks;
 - Codestra signed image derived from Apache Superset 6.1.0 with hash-locked
-  `gevent` and PostgreSQL runtime support;
+  `gevent`, PostgreSQL, and Authlib OAuth runtime support;
+- runtime verification that the immutable base supplies the reviewed
+  cryptography version required by Authlib;
 - Keycloak OIDC/PKCE mapping for approved global and business roles;
 - idempotent business-role reconciliation and runtime role verification;
 - curated datasets, charts, dashboards, semantic metrics, and Superset RLS;
@@ -56,6 +58,10 @@ production databases, or cross-business data.
 
 ## Canonical runtime and release files
 
+- `requirements-runtime.in` and `requirements-runtime.txt` — reviewed,
+  hash-locked gevent and PostgreSQL supplement;
+- `requirements-oauth.in` and `requirements-oauth.txt` — reviewed, hash-locked
+  Authlib OAuth supplement;
 - `codestra/runtime-v1/Dockerfile` — derived-image build authority;
 - `codestra/runtime-v1/compose.candidate.yaml` — only runtime topology;
 - `codestra/runtime-v1/superset_config.py.example` — embedded configuration;
@@ -64,7 +70,8 @@ production databases, or cross-business data.
 - `codestra/runtime-v1/bootstrap_roles.py` — one-shot role reconciliation;
 - `codestra/runtime-v1/check_metadata_readiness.py` — liveness plus metadata
   readiness;
-- `scripts/build_and_inspect_locked_image.sh` — exact-image execution proof;
+- `scripts/build_and_inspect_locked_image.sh` — exact-image OAuth, startup,
+  migration, role, Celery, and embedded-file execution proof;
 - `scripts/run_disposable_integration.sh` — PostgreSQL/Redis, restore, RLS, and
   write-denial proof;
 - `scripts/verify_release_identity.sh` — signed release readback.
@@ -85,8 +92,8 @@ initialization, and role-bootstrap path.
   only separately granted data-access permissions and independent RLS
   relationships.
 - Pull-request CI must validate the exact head, synthetic merge, exact built
-  image, repeated role bootstrap, Celery registration, and internal-only
-  PostgreSQL/Redis integration.
+  image, Authlib and cryptography versions, repeated role bootstrap, Celery
+  registration, and internal-only PostgreSQL/Redis integration.
 - Merge does not deploy Superset, install credentials, create Keycloak clients,
   reload Caddy, connect a datasource, or enable production traffic.
 - Database passwords, OIDC secrets, customer extracts, private keys, and
