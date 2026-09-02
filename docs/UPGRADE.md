@@ -14,14 +14,20 @@ Update together, in one reviewed pull request:
 - the byte-preserved `upstream/` source snapshot and imported tree SHA;
 - `codestra/release/runtime-base.lock.json`;
 - `codestra/release/image-build.v1.json`;
-- hash-locked runtime dependencies and the Dockerfile when the new release
-  requires them;
-- configuration, security manager, bootstrap, readiness, Compose, tests,
-  documentation, and rollback evidence.
+- `requirements-runtime.in` and `requirements-runtime.txt` for gevent and the
+  metadata-database driver;
+- `requirements-oauth.in` and `requirements-oauth.txt` for the exact Authlib
+  OAuth supplement;
+- base-image cryptography-version assertions whenever Authlib or the official
+  base changes;
+- the Dockerfile, configuration, security manager, bootstrap, readiness,
+  Compose, tests, documentation, and rollback evidence.
 
 The vendored source is audit and upgrade-review material, not executable
 production authority. The executable artifact remains the Codestra signed image
-derived from the exact locked official base.
+derived from the exact locked official base. OAuth dependencies may not be added
+with an unpinned package name, mutable index option, or unconstrained transitive
+upgrade.
 
 ## Required validation
 
@@ -29,8 +35,10 @@ Before promotion, the same source SHA must pass:
 
 1. complete JSON/YAML/Python and repository-policy validation;
 2. secret scanning and immutable-action checks;
-3. exact derived-image build and package/runtime import inspection;
-4. read-only, network-disabled Superset application startup;
+3. exact derived-image build and package/runtime import inspection, including
+   Apache Superset, Authlib, cryptography, gevent, PostgreSQL, and Gunicorn;
+4. read-only, network-disabled Superset application startup with the configured
+   OAuth security manager;
 5. metadata migration, `superset init`, repeated role bootstrap, role catalogue,
    CSP, internal health, and Celery registration checks;
 6. internal-only PostgreSQL/Redis migration, readiness, backup/restore, RLS,
@@ -51,6 +59,8 @@ workflow. Before any later installation:
 - verify the keyless signature and signer identity;
 - verify provenance and SBOM subjects against the same digest;
 - confirm vulnerability and secret-scan policy results;
+- confirm the released SBOM contains the reviewed Authlib version and does not
+  introduce an unreviewed cryptography replacement;
 - pull only the immutable digest;
 - run:
 
@@ -62,15 +72,16 @@ workflow. Before any later installation:
 
 The readback must prove the OCI source label, protected revision label,
 canonical repository digest, and non-root runtime user all agree. A mutable tag,
-syntactically valid but differently labeled digest, or source/digest mismatch is
-not an eligible upgrade.
+syntactically valid but differently labeled digest, source/digest mismatch, or
+OAuth dependency drift is not an eligible upgrade.
 
 ## Staging and production
 
 Use a fresh metadata backup and restore proof before applying the migration to a
-real environment. Validate OIDC login/logout, role synchronization, database and
-Superset RLS, read-only datasource credentials, query limits, web/worker/beat
-health, dashboards, alerts-disabled behavior, audit logging, and rollback.
+real environment. Validate OIDC login/logout, PKCE, role synchronization,
+database and Superset RLS, read-only datasource credentials, query limits,
+web/worker/beat health, dashboards, alerts-disabled behavior, audit logging, and
+rollback.
 
 Promotion does not itself authorize deployment. Production activation requires a
 separate reviewed change with exact source/image identities, runtime evidence,
