@@ -96,6 +96,8 @@ class ReadinessTests(unittest.TestCase):
         self.assertIn("from superset.app import create_app", bootstrap)
         self.assertIn("application = create_app()", bootstrap)
         self.assertIn("with application.app_context():", bootstrap)
+        self.assertIn("security_manager.session.commit()", bootstrap)
+        self.assertNotIn("security_manager.get_session", bootstrap)
         self.assertGreaterEqual(
             inspection.count("python /app/pythonpath/bootstrap_roles.py"),
             2,

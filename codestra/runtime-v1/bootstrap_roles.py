@@ -77,7 +77,7 @@ def main() -> None:
             "Gamma",
             "Codestra Security Auditor",
         )
-        security_manager.get_session.commit()
+        security_manager.session.commit()
 
     print("CODESTRA_SUPERSET_ROLE_BOOTSTRAP=PASS")
 

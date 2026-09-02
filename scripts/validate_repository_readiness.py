@@ -121,7 +121,7 @@ def validate_bootstrap_and_celery() -> None:
         "application = create_app()",
         "with application.app_context():",
         "application.appbuilder.sm",
-        "security_manager.get_session.commit()",
+        "security_manager.session.commit()",
         "CODESTRA_SUPERSET_ROLE_BOOTSTRAP=PASS",
     ):
         if token not in source:
