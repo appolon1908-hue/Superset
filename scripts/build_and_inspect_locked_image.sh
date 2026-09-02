@@ -29,7 +29,7 @@ docker build \
   .
 
 docker run --rm --network none --entrypoint python "$tag" -c \
-  'import importlib.metadata, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker; assert importlib.metadata.version("apache-superset") == "6.1.0"'
+  'import importlib.metadata as metadata; import authlib, cryptography, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker; assert metadata.version("apache-superset") == "6.1.0"; assert metadata.version("authlib") == "1.6.12"; assert metadata.version("cryptography") == "46.0.5"'
 
 # Prove that the exact image can construct a Superset application under a
 # read-only filesystem without network access or a committed secret.
