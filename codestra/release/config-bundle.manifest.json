@@ -11,12 +11,12 @@
     "codestra/api/service-contract.v1.json": "700e14f48d46919bafa5916508bc187c0e56de29631b2682e3742ae23d86b556",
     "codestra/runtime-v1/analytics-control-plane.v1.json": "ce7ff6493b2585af514770344026083b20a27f2c513c8a30bc486c5b5aad3c9e",
     "codestra/runtime-v1/analytics-governance.json": "89d5655fda32cb0c4af02d69c442990db6dcc66e7aab40fa80be8fafe1a21165",
-    "codestra/runtime-v1/bootstrap_roles.py": "800f7b9f988e980594c223d030ba6e5777fd99933965cb21beb25c4a7238147c",
+    "codestra/runtime-v1/bootstrap_roles.py": "acbf6bc733a8093e5ce794ddcdd53bf61501859f920b42b4d72699da3ee2bf4c",
     "codestra/runtime-v1/check_metadata_readiness.py": "1cc5dd71c35e2cebbba212ba42a659422f69079ea5cccb8e722c7c680a3d5fbc",
     "codestra/runtime-v1/check_release_identity.py": "8a74140601980dee30954d7fe06787a96fd080c1a5acaeee371f473340f0145a",
     "codestra/runtime-v1/codestra_security_manager.py": "ce373c2c4a8260b156b1ca718770fc437f5cff69d51389245cec817e415f2b8e",
     "codestra/runtime-v1/compose.production.yaml": "5fa2f1ac26811afe8524b9ca52b8ff7ae79168f19cc5663e0e680df04188c263",
     "codestra/runtime-v1/runtime.v1.json": "3d4a759173e47e27ab47edb403674772352d31be6fe302a3ed0855551b4cfaaf",
-    "codestra/runtime-v1/superset_config.py": "70b22ed6ce96620f07ddaccf909bf50ae254e74c3db689638317f8759f840071"
+    "codestra/runtime-v1/superset_config.py": "606c884f5e8ce6aad12b8d9f66fc3188906bb63ab3d498fdf0e0f3cb05ccdb5b"
   }
 }

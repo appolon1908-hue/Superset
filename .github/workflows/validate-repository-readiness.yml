@@ -47,7 +47,7 @@ jobs:
           lock=codestra/release/runtime-image.lock.json
           image="$(jq -r .image "$lock")"
           expected_tag_commit="$(jq -r .upstreamTagCommit "$lock")"
-          actual_tag_commit="$(git ls-remote https://github.com/apache/superset.git 'refs/tags/6.1.0^{}' | awk '{print $1}')"
+          actual_tag_commit="$(git ls-remote https://github.com/apache/superset.git 'refs/tags/6.1.0' | awk '{print $1}')"
           test "$actual_tag_commit" = "$expected_tag_commit"
           docker buildx imagetools inspect --raw "$image" > "$RUNNER_TEMP/superset-index.json"
           actual_amd64="$(jq -r '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest] | if length == 1 then .[0] else error("linux/amd64 manifest identity is not unique") end' "$RUNNER_TEMP/superset-index.json")"

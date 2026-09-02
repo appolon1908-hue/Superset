@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from superset import app
+from superset.app import create_app
 
 from codestra_security_manager import BUSINESS_SLUGS
 
@@ -15,6 +15,8 @@ def add_base_permissions(security_manager, source_name: str, target_name: str) -
     for permission_view in source.permissions:
         security_manager.add_permission_role(target, permission_view)
 
+
+app = create_app()
 
 with app.app_context():
     sm = app.appbuilder.sm

@@ -7,7 +7,9 @@
    and require the full-image vulnerability gate to pass.
 2. Update the runtime image lock and canonical Compose file in one focused PR.
 3. Review upstream release notes and migrations. Test backup and restore with
-   disposable PostgreSQL and Redis resources.
+   disposable PostgreSQL and Redis resources. Bootstrap roles through
+   `superset.app.create_app()` for Superset 6.1; do not depend on the removed
+   module-level application object.
 4. Run exact-head configuration, OIDC, tenant-isolation, migration, secret,
    vulnerability, SBOM and provenance gates.
 5. Promote through `development`, `test`, `staging`, `production`, then `main`

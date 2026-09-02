@@ -45,6 +45,7 @@ def read_secret(variable: str) -> str:
 SECRET_KEY = read_secret("SUPERSET_SECRET_KEY_FILE")
 SQLALCHEMY_DATABASE_URI = read_secret("SUPERSET_METADATA_DATABASE_URI_FILE")
 REDIS_URL = read_secret("SUPERSET_REDIS_URL_FILE")
+RATELIMIT_STORAGE_URI = REDIS_URL
 
 ENABLE_PROXY_FIX = True
 PREFERRED_URL_SCHEME = "https"
@@ -218,6 +219,8 @@ PREVENT_UNSAFE_DB_CONNECTIONS = True
 # distribution remains disabled until it is routed through the governed Codestra
 # Middleware notification path with recipient and business-scope approval.
 EMAIL_NOTIFICATIONS = False
+MCP_AUTH_ENABLED = False
+MCP_API_KEY_ENABLED = False
 
 # Datasources are provisioned separately from the repository with read-only
 # OpenBao-managed credentials and the controls in analytics-control-plane.v1.json.
