@@ -22,6 +22,7 @@ x-superset-common: &superset-common
     SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri
     SUPERSET_REDIS_URL_FILE: /run/secrets/superset_redis_url
     SUPERSET_OIDC_CLIENT_SECRET_FILE: /run/secrets/superset_oidc_client_secret
+    SUPERSET_LIVENESS_URL: http://127.0.0.1:8088/health
     SUPERSET_ENV: production
     FLASK_ENV: production
   secrets:
@@ -32,6 +33,7 @@ x-superset-common: &superset-common
   volumes:
     - ./superset_config.py.example:/app/pythonpath/superset_config.py:ro
     - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
+    - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
     - superset_home:/app/superset_home
   tmpfs:
     - /tmp:rw,noexec,nosuid,nodev,size=128m
@@ -72,10 +74,9 @@ services:
       test:
         - CMD
         - python
-        - -c
-        - "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=4); raise SystemExit(0 if r.status == 200 else 1)"
+        - /app/pythonpath/check_metadata_readiness.py
       interval: 30s
-      timeout: 5s
+      timeout: 8s
       retries: 5
       start_period: 60s
     labels:
