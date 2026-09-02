@@ -17,6 +17,8 @@ x-superset-common: &superset-common
   environment: &superset-environment
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
     PYTHONPATH: /app/pythonpath
+    SUPERSET_PUBLIC_URL: https://supe.codestra.media
+    KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
     SUPERSET_OAUTH_CLIENT_ID: superset-analytics
     SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key
     SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri
@@ -62,6 +64,8 @@ services:
       - --workers=${SUPERSET_WEB_WORKERS:-4}
       - --worker-class=gevent
       - --timeout=120
+      - --max-requests=1000
+      - --max-requests-jitter=100
       - --limit-request-line=4094
       - --limit-request-field_size=8190
       - --access-logfile=-
@@ -153,6 +157,37 @@ services:
         reservations:
           cpus: "0.05"
           memory: 128M
+
+  superset-bootstrap:
+    <<: *superset-common
+    profiles:
+      - bootstrap-after-approval
+    pids_limit: 256
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        superset db upgrade &&
+        superset init &&
+        python /app/pythonpath/bootstrap_roles.py
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-bootstrap
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+          pids: 256
+        reservations:
+          cpus: "0.10"
+          memory: 256M
 
 networks:
   codestra-analytics:

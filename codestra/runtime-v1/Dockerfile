@@ -18,6 +18,7 @@ RUN uv pip install --python /app/.venv/bin/python --require-hashes --no-cache \
     && rm /tmp/requirements-runtime.txt
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/superset_config.py.example /app/pythonpath/superset_config.py
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/codestra_security_manager.py /app/pythonpath/codestra_security_manager.py
+COPY --chown=10001:10001 --chmod=0555 codestra/runtime-v1/bootstrap_roles.py /app/pythonpath/bootstrap_roles.py
 COPY --chown=10001:10001 --chmod=0555 codestra/runtime-v1/check_metadata_readiness.py /app/pythonpath/check_metadata_readiness.py
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/runtime.v1.json /usr/share/codestra/runtime.v1.json
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/analytics-control-plane.v1.json /usr/share/codestra/analytics-control-plane.v1.json

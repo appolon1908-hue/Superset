@@ -4,81 +4,82 @@ on:
   pull_request:
     paths:
       - "codestra/runtime-v1/**"
+      - "scripts/validate_codestra_repository.py"
       - ".github/workflows/validate-codestra-runtime-v1.yml"
   push:
-    branches:
-      - development
-      - test
-      - staging
-      - production
-      - main
+    branches: [development, test, staging, production, main]
     paths:
       - "codestra/runtime-v1/**"
+      - "scripts/validate_codestra_repository.py"
       - ".github/workflows/validate-codestra-runtime-v1.yml"
 
 permissions:
   contents: read
 
+concurrency:
+  group: superset-runtime-v1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - name: Compile Codestra Python configuration
-        run: python -m py_compile codestra/runtime-v1/*.py
-      - name: Install pinned YAML parser
-        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
-      - name: Validate identity, analytics, and runtime contracts
-        shell: python
+      - name: Check out exact head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install pinned validation dependency
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          PyYAML==6.0.3
+
+      - name: Compile and validate the complete runtime overlay
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
         run: |
-          from pathlib import Path
-          import json
-          import yaml
+          python -m py_compile codestra/runtime-v1/*.py
+          python -m py_compile scripts/validate_codestra_repository.py
+          python scripts/validate_codestra_repository.py
 
-          root = Path("codestra/runtime-v1")
-          config = (root / "superset_config.py.example").read_text()
-          security = (root / "codestra_security_manager.py").read_text()
-          governance = json.loads((root / "analytics-governance.json").read_text())
-          compose_text = (root / "compose.candidate.yaml").read_text()
-          compose = yaml.safe_load(compose_text)
+      - name: Render the inactive deployment and bootstrap candidates
+        env:
+          CODESTRA_SUPERSET_IMAGE: ghcr.io/appolon1908-hue/superset-superset@sha256:2222222222222222222222222222222222222222222222222222222222222222
+          CODESTRA_SOURCE_SHA: "0000000000000000000000000000000000000000"
+          CODESTRA_IMAGE_DIGEST: sha256:2222222222222222222222222222222222222222222222222222222222222222
+          CODESTRA_ENVIRONMENT: test
+          CODESTRA_REGION: ci
+          CODESTRA_SERVER: github-actions
+          CODESTRA_SUPERSET_DEPLOYMENT_ID: exact-head-ci
+          CODESTRA_ANALYTICS_NETWORK: codestra-analytics
+          CODESTRA_OBSERVABILITY_NETWORK: codestra-observability
+          SUPERSET_SECRET_KEY_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_METADATA_DATABASE_URI_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_REDIS_URL_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_OIDC_CLIENT_SECRET_FILE_SOURCE: /tmp/not-read-during-render
+        run: |
+          docker compose \
+            -f codestra/runtime-v1/compose.candidate.yaml \
+            --profile candidate-after-approval \
+            --profile bootstrap-after-approval \
+            config > /tmp/candidate-compose.yaml
+          test -s /tmp/candidate-compose.yaml
+          test "$(grep -c 'host_ip: 127.0.0.1' /tmp/candidate-compose.yaml)" -eq 1
+          ! grep -Eq \
+            ':latest([[:space:]]|$)|privileged: true|network_mode: host|pid: host|SUPERSET_SECRET_KEY=|SUPERSET_OIDC_CLIENT_SECRET=' \
+            /tmp/candidate-compose.yaml
 
-          required_businesses = {
-              "codestra", "moneybee", "beyvra", "breero", "larim-a",
-              "transportation", "booked4seasons", "social", "klyrow",
-              "telnexa", "kyqra", "restaurant", "provisioning",
-          }
-          assert set(governance["businesses"]) == required_businesses
-          assert governance["rowLevelSecurity"]["defaultDeny"] is True
-          assert governance["rowLevelSecurity"]["databaseNativeRlsAlsoRequired"] is True
-          assert governance["releaseGates"]["rlsTestEvidenceRequired"] is True
-          assert governance["releaseGates"]["writeCredentialsAllowed"] is False
-          assert governance["releaseGates"]["directProductionDatabaseAccessAllowed"] is False
-          assert 'AUTH_TYPE = AUTH_OAUTH' in config
-          assert 'code_challenge_method": "S256"' in config
-          assert 'read_secret("SUPERSET_SECRET_KEY_FILE")' in config
-          assert 'read_secret("SUPERSET_OIDC_CLIENT_SECRET_FILE")' in config
-          assert '"ALERT_REPORTS": False' in config
-          assert '"EMBEDDED_SUPERSET": False' in config
-          assert 'Only the Codestra Keycloak provider is approved' in security
-          assert 'email_verified' in security
-          assert 'No approved Codestra Superset role was supplied' in security
-          assert 'remote.get("userinfo")' in security
-          for business in required_businesses:
-              assert business in security
-          for name, service in compose["services"].items():
-              assert service["read_only"] is True, name
-              assert "ALL" in service["cap_drop"], name
-          assert compose["services"]["superset-web"]["ports"] == [
-              "127.0.0.1:${SUPERSET_LOOPBACK_PORT:-8088}:8088"
-          ]
-          assert "ports" not in compose["services"]["superset-worker"]
-          assert "ports" not in compose["services"]["superset-beat"]
-          assert set(compose["services"]) == {"superset-web", "superset-worker", "superset-beat"}
-          assert all(set(value) == {"file"} for value in compose["secrets"].values())
-          assert "env_file" not in compose_text
-          assert "latest" not in compose_text.lower()
-          forbidden_literals = ("changeme", "supersecret", "admin_password", "client_secret = '")
-          assert not any(value in (config + compose_text).lower() for value in forbidden_literals)
-          print("Codestra Superset runtime validation PASS")
-      - name: Validate Compose structure without resolving runtime credentials
-        run: docker compose -f codestra/runtime-v1/compose.candidate.yaml config --no-interpolate >/dev/null
+      - name: Confirm migrations are one-shot only
+        run: |
+          ! grep -A45 '^  superset-web:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -Eq 'db upgrade|superset init'
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -q 'profiles:'
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -q 'superset db upgrade'

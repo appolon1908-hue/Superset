@@ -37,7 +37,12 @@ BUSINESSES = {
     "restaurant",
     "provisioning",
 }
-REQUIRED_SERVICES = {"superset-web", "superset-worker", "superset-beat"}
+REQUIRED_SERVICES = {
+    "superset-web",
+    "superset-worker",
+    "superset-beat",
+    "superset-bootstrap",
+}
 REQUIRED_SECRET_FILES = {
     "SUPERSET_SECRET_KEY_FILE",
     "SUPERSET_METADATA_DATABASE_URI_FILE",
@@ -258,6 +263,8 @@ def validate_compose() -> None:
             fail(f"Superset service must set no-new-privileges: {name}")
         if service.get("privileged") is True or service.get("network_mode") == "host":
             fail(f"Superset service has forbidden host authority: {name}")
+    if services["superset-bootstrap"].get("profiles") != ["bootstrap-after-approval"]:
+        fail("Superset bootstrap must remain an explicitly approved one-shot profile")
         if "candidate-after-approval" not in service.get("profiles", []):
             fail(f"Superset candidate service lacks activation profile: {name}")
         image = str(service.get("image", ""))

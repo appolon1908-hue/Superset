@@ -84,6 +84,10 @@ def main() -> None:
         fail("Superset Compose is not a deploy-only file-secret boundary")
     if any(set(value) != {"file"} for value in compose.get("secrets", {}).values()):
         fail("Superset secret definitions must be file-only")
+    if set(compose.get("services", {})) != {"superset-web", "superset-worker", "superset-beat", "superset-bootstrap"}:
+        fail("Superset candidate must include only the governed runtime and one-shot bootstrap services")
+    if compose["services"]["superset-bootstrap"].get("profiles") != ["bootstrap-after-approval"]:
+        fail("Superset bootstrap must remain inactive without explicit approval")
     runtime = load("codestra/runtime-v1/runtime.v1.json")
     if runtime.get("status") != "CONFIG_PREPARED_NOT_DEPLOYED" or any(runtime.get("activation", {}).values()):
         fail("Superset runtime activation must remain false")

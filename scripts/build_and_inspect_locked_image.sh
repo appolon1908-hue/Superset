@@ -45,11 +45,13 @@ for file in image-build.v1.json runtime-base.lock.json runtime.v1.json; do
 done
 docker cp "$container_id:/app/pythonpath/superset_config.py" "$evidence_dir/superset_config.py"
 docker cp "$container_id:/app/pythonpath/codestra_security_manager.py" "$evidence_dir/codestra_security_manager.py"
+docker cp "$container_id:/app/pythonpath/bootstrap_roles.py" "$evidence_dir/bootstrap_roles.py"
 docker cp "$container_id:/app/pythonpath/check_metadata_readiness.py" "$evidence_dir/check_metadata_readiness.py"
 cmp codestra/release/image-build.v1.json "$evidence_dir/image-build.v1.json"
 cmp codestra/release/runtime-base.lock.json "$evidence_dir/runtime-base.lock.json"
 cmp codestra/runtime-v1/runtime.v1.json "$evidence_dir/runtime.v1.json"
 cmp codestra/runtime-v1/superset_config.py.example "$evidence_dir/superset_config.py"
 cmp codestra/runtime-v1/codestra_security_manager.py "$evidence_dir/codestra_security_manager.py"
+cmp codestra/runtime-v1/bootstrap_roles.py "$evidence_dir/bootstrap_roles.py"
 cmp codestra/runtime-v1/check_metadata_readiness.py "$evidence_dir/check_metadata_readiness.py"
 echo "SUPERSET_LOCKED_IMAGE_INSPECTION=PASS"

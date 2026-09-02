@@ -21,7 +21,10 @@ class ReadinessTests(unittest.TestCase):
     def test_compose_is_canonical_and_file_secret_bound(self) -> None:
         self.assertFalse((ROOT / "codestra/runtime-v1/compose.yaml").exists())
         compose = yaml.safe_load((ROOT / "codestra/runtime-v1/compose.candidate.yaml").read_text())
-        self.assertEqual(set(compose["services"]), {"superset-web", "superset-worker", "superset-beat"})
+        self.assertEqual(
+            set(compose["services"]),
+            {"superset-web", "superset-worker", "superset-beat", "superset-bootstrap"},
+        )
         self.assertTrue(all(set(value) == {"file"} for value in compose["secrets"].values()))
 
     def test_runtime_identity_rejects_mutable_or_misaligned_images(self) -> None:

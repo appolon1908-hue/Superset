@@ -1,0 +1,127 @@
+name: Validate complete Superset repository contract
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "REPOSITORY_PROFILE.md"
+      - "CODESTRA_UPSTREAM.json"
+      - "CODESTRA_UPSTREAM_LOCK.json"
+      - "codestra/**"
+      - "docs/**"
+      - "integration/**"
+      - "orbit/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - development
+      - test
+      - staging
+      - production
+      - main
+    paths:
+      - "README.md"
+      - "REPOSITORY_PROFILE.md"
+      - "CODESTRA_UPSTREAM.json"
+      - "CODESTRA_UPSTREAM_LOCK.json"
+      - "codestra/**"
+      - "docs/**"
+      - "integration/**"
+      - "orbit/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: superset-repository-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head with full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install pinned validation dependency
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          PyYAML==6.0.3
+
+      - name: Reject whitespace and merge-marker defects
+        run: |
+          git diff --check
+          ! grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
+            --exclude-dir=.git --exclude-dir=upstream .
+
+      - name: Compile all Codestra-owned Python
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
+        run: |
+          find codestra scripts -type f -name '*.py' -print0 \
+            | xargs -0 python -m py_compile
+
+      - name: Validate the full repository authority
+        run: |
+          python scripts/validate_codestra_repository.py
+          python scripts/validate_codestra_superset.py
+          python scripts/validate_codestra_review_hardening.py
+          python scripts/validate_codestra_superset_oidc.py
+          python scripts/validate_codestra_superset_readiness.py
+
+      - name: Parse every Codestra-owned JSON document
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path("CODESTRA_UPSTREAM.json"),
+              Path("CODESTRA_UPSTREAM_LOCK.json"),
+              *Path("codestra").rglob("*.json"),
+              *Path("integration").rglob("*.json"),
+              *Path("orbit").rglob("*.json"),
+          ]
+          for path in sorted(set(paths)):
+              json.loads(path.read_text(encoding="utf-8"))
+          print(f"CODESTRA_JSON_DOCUMENTS_VALID={len(set(paths))}")
+          PY
+
+      - name: Confirm source-only state
+        run: |
+          python - <<'PY'
+          import json
+
+          runtime = json.load(
+              open("codestra/runtime-v1/runtime.v1.json", encoding="utf-8")
+          )
+          control = json.load(
+              open(
+                  "codestra/runtime-v1/analytics-control-plane.v1.json",
+                  encoding="utf-8",
+              )
+          )
+          orbit = json.load(
+              open("orbit/adoption-manifest.json", encoding="utf-8")
+          )
+          assert runtime["activation"]
+          assert all(value is False for value in runtime["activation"].values())
+          assert control["releaseGates"]
+          assert all(
+              value is False for value in control["releaseGates"].values()
+          )
+          assert orbit["activation"]
+          assert all(value is False for value in orbit["activation"].values())
+          print("CODESTRA_SOURCE_ONLY_STATE=PASS")
+          PY
