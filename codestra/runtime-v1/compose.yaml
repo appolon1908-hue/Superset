@@ -149,6 +149,7 @@ services:
     profiles:
       - bootstrap
     restart: "no"
+    pids_limit: 256
     command:
       - /bin/sh
       - -ec
