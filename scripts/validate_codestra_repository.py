@@ -399,8 +399,7 @@ def validate_secret_safety() -> None:
         ROOT / "codestra",
         ROOT / "integration",
         ROOT / "orbit",
-        ROOT / "scripts",
-        ROOT / ".github" / "workflows",
+        ROOT / "docs",
     )
     signatures = (
         "-----BEGIN PRIVATE KEY-----",
