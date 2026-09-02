@@ -37,6 +37,8 @@ REQUIRED = (
     "codestra/runtime-v1/compose.candidate.yaml",
     "docs/BACKUP_RESTORE_ROLLBACK.md",
     "docs/UPGRADE.md",
+    "requirements-oauth.in",
+    "requirements-oauth.txt",
     "requirements-runtime.in",
     "requirements-runtime.txt",
     "requirements-validation.txt",
@@ -48,6 +50,11 @@ REQUIRED = (
     "tests/validate_bootstrap_runtime.py",
     "tests/validate_celery_runtime.py",
 )
+
+OAUTH_HASHES = {
+    "0656d8482f28fc8221929d5f35b2bde5d13e10555ebc06b4561b0d622e83b1bd",
+    "e9229ad7fde610b139dd12f5edbe97eab9ee78bfb85691247e767727850b99ab",
+}
 
 
 def fail(message: str) -> None:
@@ -147,6 +154,62 @@ def validate_bootstrap_and_celery() -> None:
             fail(f"Celery runtime validator omits: {token}")
 
 
+def validate_dependency_locks(dockerfile: str) -> None:
+    runtime_input = (
+        ROOT / "requirements-runtime.in"
+    ).read_text(encoding="utf-8").splitlines()
+    if runtime_input != [
+        "gevent==24.2.1",
+        "greenlet==3.1.1",
+        "psycopg2-binary==2.9.9",
+        "setuptools==80.9.0",
+        "zope-event==5.0",
+        "zope-interface==5.4.0",
+    ]:
+        fail("Superset 6.1.0 runtime extras differ from release constraints")
+    runtime_lock = (ROOT / "requirements-runtime.txt").read_text(encoding="utf-8")
+    for dependency in runtime_input:
+        if dependency not in runtime_lock:
+            fail(f"runtime dependency lock omits {dependency}")
+    if "--hash=sha256:" not in runtime_lock:
+        fail("runtime dependency lock must contain exact distribution hashes")
+
+    oauth_input = (ROOT / "requirements-oauth.in").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    if oauth_input != ["authlib==1.6.12"]:
+        fail("OAuth runtime supplement must remain exactly Authlib 1.6.12")
+    oauth_lock = (ROOT / "requirements-oauth.txt").read_text(encoding="utf-8")
+    if "authlib==1.6.12" not in oauth_lock:
+        fail("OAuth dependency lock omits Authlib 1.6.12")
+    actual_hashes = set(re.findall(r"--hash=sha256:([0-9a-f]{64})", oauth_lock))
+    if actual_hashes != OAUTH_HASHES:
+        fail("Authlib lock hashes differ from the reviewed release files")
+    for forbidden in ("http://", "https://", "--index-url", "--extra-index-url"):
+        if forbidden in oauth_lock:
+            fail(f"OAuth lock contains an unapproved package source: {forbidden}")
+
+    for token in (
+        "requirements-runtime.txt",
+        "requirements-oauth.txt",
+        "--require-hashes",
+        "--no-deps",
+        "import authlib, cryptography",
+        'metadata.version("authlib") == "1.6.12"',
+        'metadata.version("cryptography") == "46.0.5"',
+    ):
+        if token not in dockerfile:
+            fail(f"Dockerfile dependency boundary missing: {token}")
+
+    dockerignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
+    for token in (
+        "!requirements-runtime.txt",
+        "!requirements-oauth.txt",
+    ):
+        if token not in dockerignore.splitlines():
+            fail(f"Docker build context omits locked dependency input: {token}")
+
+
 def validate_signed_image() -> None:
     manifest = load("codestra/release/image-build.v1.json")
     lock = load("codestra/release/runtime-base.lock.json")
@@ -180,10 +243,7 @@ def validate_signed_image() -> None:
         fail("Dockerfile frontend mismatch")
     for token in (
         "FROM ${SUPERSET_BASE_IMAGE}",
-        "requirements-runtime.txt",
         "uv pip install",
-        "--require-hashes",
-        "import gevent, psycopg2",
         "superset_config.py.example",
         "bootstrap_roles.py",
         "runtime-base.lock.json",
@@ -192,29 +252,15 @@ def validate_signed_image() -> None:
         if token not in dockerfile:
             fail(f"Dockerfile release boundary missing: {token}")
 
-    runtime_input = (
-        ROOT / "requirements-runtime.in"
-    ).read_text(encoding="utf-8").splitlines()
-    if runtime_input != [
-        "gevent==24.2.1",
-        "greenlet==3.1.1",
-        "psycopg2-binary==2.9.9",
-        "setuptools==80.9.0",
-        "zope-event==5.0",
-        "zope-interface==5.4.0",
-    ]:
-        fail("Superset 6.1.0 runtime extras differ from release constraints")
-    runtime_lock = (ROOT / "requirements-runtime.txt").read_text(encoding="utf-8")
-    for dependency in runtime_input:
-        if dependency not in runtime_lock:
-            fail(f"runtime dependency lock omits {dependency}")
-    if "--hash=sha256:" not in runtime_lock:
-        fail("runtime dependency lock must contain exact distribution hashes")
+    validate_dependency_locks(dockerfile)
 
     inspection = require_tokens(
         "scripts/build_and_inspect_locked_image.sh",
         (
-            "importlib.metadata, gevent, psycopg2",
+            "import authlib, cryptography, gevent, psycopg2",
+            'metadata.version("apache-superset") == "6.1.0"',
+            'metadata.version("authlib") == "1.6.12"',
+            'metadata.version("cryptography") == "46.0.5"',
             "from superset.app import create_app",
             "--network none",
             "--read-only",
@@ -369,6 +415,7 @@ def main() -> None:
 
     print("SUPERSET_REPOSITORY_READINESS_SOURCE=PASS")
     print("UPSTREAM_TREE_IDENTITY=PASS")
+    print("OAUTH_RUNTIME_DEPENDENCY_LOCK=PASS")
     print("BOOTSTRAP_AND_CELERY_RUNTIME_GATE=REQUIRED")
     print("DISPOSABLE_POSTGRES_REDIS_INTEGRATION=REQUIRED")
     print("SIGNED_RELEASE_IDENTITY_READBACK=REQUIRED")
