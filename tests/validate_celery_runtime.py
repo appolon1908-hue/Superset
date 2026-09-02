@@ -4,23 +4,33 @@ from superset.tasks.celery_app import app as celery_app
 from superset.tasks.celery_app import flask_app
 
 
+EXPECTED_IMPORTS = {
+    "superset.sql_lab",
+    "superset.tasks.scheduler",
+    "superset.tasks.thumbnails",
+    "superset.tasks.cache",
+    "superset.tasks.slack",
+}
 REQUIRED_TASKS = {
     "sql_lab.get_sql_results",
     "reports.scheduler",
     "reports.prune_log",
-    "version_history.prune_old_versions",
-    "deletion_retention.purge_soft_deleted",
 }
-REQUIRED_SCHEDULES = {
+EXPECTED_SCHEDULES = {
     "reports.scheduler",
     "reports.prune_log",
-    "version_history.prune_old_versions",
-    "deletion_retention.purge_soft_deleted",
 }
 
 
 def main() -> None:
     with flask_app.app_context():
+        configured_imports = set(celery_app.conf.imports or ())
+        if configured_imports != EXPECTED_IMPORTS:
+            raise SystemExit(
+                "Superset Celery imports differ from the locked 6.1.0 set: "
+                + ", ".join(sorted(configured_imports))
+            )
+
         celery_app.loader.import_default_modules()
         missing_tasks = sorted(REQUIRED_TASKS.difference(celery_app.tasks))
         if missing_tasks:
@@ -29,13 +39,12 @@ def main() -> None:
             )
 
         schedule = celery_app.conf.beat_schedule or {}
-        missing_schedules = sorted(REQUIRED_SCHEDULES.difference(schedule))
-        if missing_schedules:
+        if set(schedule) != EXPECTED_SCHEDULES:
             raise SystemExit(
-                "missing required Superset beat schedules: "
-                + ", ".join(missing_schedules)
+                "Superset beat schedules differ from the locked 6.1.0 set: "
+                + ", ".join(sorted(schedule))
             )
-        for name in REQUIRED_SCHEDULES:
+        for name in EXPECTED_SCHEDULES:
             if schedule[name].get("task") != name:
                 raise SystemExit(f"beat schedule task identity mismatch: {name}")
 
