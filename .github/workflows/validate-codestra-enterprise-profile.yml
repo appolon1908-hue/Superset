@@ -1,0 +1,42 @@
+name: Validate Codestra Superset enterprise profile
+
+on:
+  pull_request:
+    paths:
+      - 'codestra/**'
+      - 'scripts/validate_codestra_enterprise_profile.py'
+      - 'scripts/validate_codestra_review_hardening.py'
+      - '.github/workflows/validate-codestra-enterprise-profile.yml'
+  push:
+    branches: [development, test, staging, production, main]
+    paths:
+      - 'codestra/**'
+      - 'scripts/validate_codestra_enterprise_profile.py'
+      - 'scripts/validate_codestra_review_hardening.py'
+      - '.github/workflows/validate-codestra-enterprise-profile.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: superset-enterprise-profile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate enterprise profile and review-hardening contract
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-profile-pycache
+        run: |
+          python3 -m py_compile \
+            scripts/validate_codestra_enterprise_profile.py \
+            scripts/validate_codestra_review_hardening.py \
+            codestra/runtime-v1/codestra_security_manager_v2.py \
+            codestra/runtime-v1/superset_config.py \
+            codestra/runtime-v1/superset_config.py.example
+          python3 scripts/validate_codestra_enterprise_profile.py
+          python3 scripts/validate_codestra_review_hardening.py

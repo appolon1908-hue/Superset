@@ -1,0 +1,185 @@
+name: codestra-superset-corporate
+
+x-superset-common: &superset-common
+  image: ${SUPERSET_IMAGE:?SUPERSET_IMAGE must be an immutable image reference containing @sha256:}
+  profiles:
+    - candidate-after-approval
+  restart: "no"
+  user: "10001:10001"
+  read_only: true
+  init: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 512
+  stop_grace_period: 60s
+  environment: &superset-environment
+    SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    PYTHONPATH: /app/pythonpath
+    SUPERSET_PUBLIC_URL: https://supe.codestra.media
+    KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
+    SUPERSET_OAUTH_CLIENT_ID: superset-analytics
+    SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key
+    SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri
+    SUPERSET_REDIS_URL_FILE: /run/secrets/superset_redis_url
+    SUPERSET_OIDC_CLIENT_SECRET_FILE: /run/secrets/superset_oidc_client_secret
+    SUPERSET_LIVENESS_URL: http://127.0.0.1:8088/health
+    SUPERSET_ENV: production
+    FLASK_ENV: production
+  secrets:
+    - superset_secret_key
+    - superset_metadata_database_uri
+    - superset_redis_url
+    - superset_oidc_client_secret
+  volumes:
+    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
+    - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
+    - superset_home:/app/superset_home
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=128m
+  networks:
+    - codestra-analytics
+    - codestra-observability
+  logging:
+    driver: json-file
+    options:
+      max-size: 25m
+      max-file: "5"
+  labels:
+    codestra.business: platform
+    codestra.application: analytics
+    codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+    codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+    codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+    codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+    codestra.owner: business-intelligence
+
+services:
+  superset-web:
+    <<: *superset-common
+    command:
+      - gunicorn
+      - --bind=0.0.0.0:8088
+      - --workers=${SUPERSET_WEB_WORKERS:-4}
+      - --worker-class=gevent
+      - --timeout=120
+      - --max-requests=1000
+      - --max-requests-jitter=100
+      - --limit-request-line=4094
+      - --limit-request-field_size=8190
+      - --access-logfile=-
+      - --error-logfile=-
+      - superset.app:create_app()
+    ports:
+      - "127.0.0.1:${SUPERSET_LOOPBACK_PORT:-8088}:8088"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - /app/pythonpath/check_metadata_readiness.py
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 60s
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-web
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 2G
+          pids: 512
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+  superset-worker:
+    <<: *superset-common
+    command:
+      - celery
+      - --app=superset.tasks.celery_app:app
+      - worker
+      - --loglevel=INFO
+      - --concurrency=${SUPERSET_WORKER_CONCURRENCY:-2}
+      - --max-tasks-per-child=100
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-worker
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2G
+          pids: 512
+        reservations:
+          cpus: "0.20"
+          memory: 512M
+
+  superset-beat:
+    <<: *superset-common
+    pids_limit: 128
+    command:
+      - celery
+      - --app=superset.tasks.celery_app:app
+      - beat
+      - --loglevel=INFO
+      - --pidfile=/tmp/celerybeat.pid
+      - --schedule=/app/superset_home/celerybeat-schedule
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-beat
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+          pids: 128
+        reservations:
+          cpus: "0.05"
+          memory: 128M
+
+networks:
+  codestra-analytics:
+    external: true
+    name: ${CODESTRA_ANALYTICS_NETWORK:-codestra-analytics}
+  codestra-observability:
+    external: true
+    name: ${CODESTRA_OBSERVABILITY_NETWORK:-codestra-observability}
+
+volumes:
+  superset_home:
+
+secrets:
+  superset_secret_key:
+    external: true
+    name: ${SUPERSET_SECRET_KEY_SECRET_NAME:-superset-secret-key}
+  superset_metadata_database_uri:
+    external: true
+    name: ${SUPERSET_METADATA_DATABASE_URI_SECRET_NAME:-superset-metadata-database-uri}
+  superset_redis_url:
+    external: true
+    name: ${SUPERSET_REDIS_URL_SECRET_NAME:-superset-redis-url}
+  superset_oidc_client_secret:
+    external: true
+    name: ${SUPERSET_OIDC_CLIENT_SECRET_NAME:-superset-oidc-client-secret}
