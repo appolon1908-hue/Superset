@@ -3,15 +3,21 @@ name: Validate complete Superset repository contract
 on:
   pull_request:
     paths:
+      - ".dockerignore"
+      - ".gitattributes"
+      - ".gitleaks.toml"
       - "README.md"
       - "REPOSITORY_PROFILE.md"
+      - "SECURITY.md"
       - "CODESTRA_UPSTREAM.json"
       - "CODESTRA_UPSTREAM_LOCK.json"
+      - "requirements*.txt"
       - "codestra/**"
       - "docs/**"
       - "integration/**"
       - "orbit/**"
       - "scripts/**"
+      - "tests/**"
       - ".github/workflows/**"
   push:
     branches:
@@ -21,15 +27,21 @@ on:
       - production
       - main
     paths:
+      - ".dockerignore"
+      - ".gitattributes"
+      - ".gitleaks.toml"
       - "README.md"
       - "REPOSITORY_PROFILE.md"
+      - "SECURITY.md"
       - "CODESTRA_UPSTREAM.json"
       - "CODESTRA_UPSTREAM_LOCK.json"
+      - "requirements*.txt"
       - "codestra/**"
       - "docs/**"
       - "integration/**"
       - "orbit/**"
       - "scripts/**"
+      - "tests/**"
       - ".github/workflows/**"
 
 permissions:
@@ -48,6 +60,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
@@ -59,9 +72,10 @@ jobs:
           python -m pip install --disable-pip-version-check --no-cache-dir
           PyYAML==6.0.3
 
-      - name: Reject whitespace and merge-marker defects
+      - name: Reject whitespace, shell, and merge-marker defects
         run: |
           git diff --check
+          bash -n scripts/*.sh
           ! grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
             --exclude-dir=.git --exclude-dir=upstream .
 
@@ -69,7 +83,7 @@ jobs:
         env:
           PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
         run: |
-          find codestra scripts -type f -name '*.py' -print0 \
+          find codestra scripts tests -type f -name '*.py' -print0 \
             | xargs -0 python -m py_compile
 
       - name: Validate the full repository authority
@@ -79,6 +93,8 @@ jobs:
           python scripts/validate_codestra_review_hardening.py
           python scripts/validate_codestra_superset_oidc.py
           python scripts/validate_codestra_superset_readiness.py
+          python scripts/validate_repository_readiness.py
+          python -m unittest discover -s tests -p 'test_*.py'
 
       - name: Parse every Codestra-owned JSON document
         run: |
