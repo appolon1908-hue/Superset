@@ -57,5 +57,13 @@ class ReadinessTests(unittest.TestCase):
         self.assertIn(".RepoDigests", source)
         self.assertNotIn(":latest", source)
 
+    def test_disposable_database_gate_keeps_stdin_and_denies_external_runtime(self) -> None:
+        source = (ROOT / "scripts/run_disposable_integration.sh").read_text()
+        self.assertIn("docker network create --internal", source)
+        self.assertIn('docker exec -i "$postgres" psql', source)
+        self.assertIn("superset db upgrade", source)
+        self.assertIn("pg_restore", source)
+        self.assertIn("ALTER TABLE certified_dataset FORCE ROW LEVEL SECURITY", source)
+
 if __name__ == "__main__":
     unittest.main()

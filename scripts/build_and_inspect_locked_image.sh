@@ -22,6 +22,8 @@ trap cleanup EXIT
 docker build \
   --file codestra/runtime-v1/Dockerfile \
   --build-arg "SUPERSET_BASE_IMAGE=$runtime" \
+  --label "org.opencontainers.image.source=https://github.com/appolon1908-hue/Superset" \
+  --label "org.opencontainers.image.revision=$source_sha" \
   --tag "$tag" \
   .
 docker run --rm --network none --entrypoint python "$tag" -c 'import importlib.metadata, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker; assert importlib.metadata.version("apache-superset") == "6.1.0"'
@@ -36,6 +38,8 @@ docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,nodev \
   --entrypoint python "$tag" \
   -c 'from superset.app import create_app; application = create_app(); assert application is not None'
 test "$(docker image inspect "$tag" --format '{{.Config.User}}')" = '10001:10001'
+test "$(docker image inspect "$tag" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/appolon1908-hue/Superset'
+test "$(docker image inspect "$tag" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$source_sha"
 
 container_id="$(docker create "$tag")"
 evidence_dir="${RUNNER_TEMP:-/tmp}/superset-image-${source_sha}"

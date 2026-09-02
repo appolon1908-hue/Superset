@@ -52,6 +52,12 @@ python scripts/validate_codestra_superset_oidc.py
 python scripts/validate_codestra_superset_readiness.py
 ```
 
+Exact-head CI additionally builds the locked derived image and runs an isolated,
+internal-only PostgreSQL/Redis integration. It applies migrations explicitly,
+boots the supported roles, proves web and metadata readiness, restores a dump
+into a separate disposable database, and verifies RLS plus write denial. The
+test does not use production credentials, networks, data, or provider traffic.
+
 Render both Compose contracts with an immutable image reference and required
 non-secret deployment metadata before deployment review. Repository validation
 does not connect to a database, create an identity client, provision a
