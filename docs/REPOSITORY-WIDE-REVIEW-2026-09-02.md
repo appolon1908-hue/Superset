@@ -70,6 +70,10 @@ server or datasource.
 12. Backup/restore and upgrade documents were too short to define source/image
     identities, restore evidence, rollback abort conditions, and deployment
     readback.
+13. The official base image did not contain Authlib. As soon as the exact-image
+    test constructed the configured OAuth security manager, Superset failed with
+    `ModuleNotFoundError: No module named 'authlib'`, so Keycloak login and every
+    CLI operation that initializes Flask-AppBuilder were blocked.
 
 ## Repository-wide corrections
 
@@ -101,21 +105,27 @@ server or datasource.
 9. `verify_release_identity.sh` binds deployment inputs to the canonical GHCR
    digest, OCI source label, protected revision label, and user `10001:10001`
    after signature/provenance/SBOM verification.
-10. Repository validators and unit tests now reject bootstrap-factory
-    regressions, secret-directory traversal regressions, upstream-tree drift,
-    mutable release inputs, duplicate runtime authorities, missing exact-image
-    or PostgreSQL/Redis tests, unpinned actions, direct protected-branch pushes,
-    and enabled activation flags.
-11. The README, repository profile, backup/restore/rollback policy, and upgrade
+10. Authlib 1.6.12 is now a separate exact, hash-locked OAuth supplement. It is
+    installed with dependency resolution disabled; the immutable official base
+    continues to supply cryptography, and the Docker build plus exact-image
+    runtime test assert the reviewed Authlib and cryptography versions before
+    Superset startup.
+11. Repository validators and unit tests now reject bootstrap-factory
+    regressions, missing OAuth dependencies, OAuth hash or package-source drift,
+    secret-directory traversal regressions, upstream-tree drift, mutable release
+    inputs, duplicate runtime authorities, missing exact-image or PostgreSQL/Redis
+    tests, unpinned actions, direct protected-branch pushes, and enabled
+    activation flags.
+12. The README, repository profile, backup/restore/rollback policy, and upgrade
     policy now document the actual signed-image authority and operational gates.
-12. The corporate Compose validator's previously unreachable profile, immutable
+13. The corporate Compose validator's previously unreachable profile, immutable
     image, resource-limit, and PID consistency checks were corrected.
 
 ## Selected runtime authority
 
 - Executable base: exact official Apache Superset 6.1.0 image digest.
-- Codestra artifact: signed derived image with hash-locked `gevent` and
-  PostgreSQL support.
+- Codestra artifact: signed derived image with hash-locked `gevent`, PostgreSQL,
+  and Authlib OAuth support, plus runtime-verified base cryptography.
 - Configuration embedded into image: `superset_config.py.example`.
 - Identical source-side config: `superset_config.py`.
 - Identity authority: `codestra_security_manager.py`; compatibility copy must
@@ -125,8 +135,8 @@ server or datasource.
   `bootstrap-after-approval` profile only.
 - Native web publication: loopback only.
 - Secrets: mounted files only.
-- Required CI: source, synthetic merge, exact image, role/Celery runtime, and
-  internal PostgreSQL/Redis integration.
+- Required CI: source, synthetic merge, exact image, OAuth startup, role/Celery
+  runtime, and internal PostgreSQL/Redis integration.
 - Production activation: false.
 
 ## State after source remediation
@@ -142,8 +152,9 @@ n8n, or business-write capability is activated by these changes.
   repository files cannot substitute for account-side protection.
 - The signed image must be released from the exact protected production SHA and
   its digest recorded in the deployment bill of materials.
-- Signature, signer identity, provenance, SBOM, and vulnerability evidence must
-  pass before `verify_release_identity.sh` is used on the pulled digest.
+- Signature, signer identity, provenance, SBOM, vulnerability, and exact OAuth
+  dependency evidence must pass before `verify_release_identity.sh` is used on
+  the pulled digest.
 - Staging must prove real mounted secrets, PostgreSQL and Redis readiness, OIDC
   login/logout and role synchronization, worker/beat execution, database-native
   and Superset RLS, cross-business denial, certified read-only datasource
