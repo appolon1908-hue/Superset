@@ -18,6 +18,7 @@ cleanup() {
   docker rm -f "$web" "$redis" "$postgres" >/dev/null 2>&1 || true
   docker network rm "$network" >/dev/null 2>&1 || true
   if [[ -d "$secret_root" ]]; then
+    chmod 0700 "$secret_root"
     find "$secret_root" -type f -exec unlink {} \;
     rmdir "$secret_root"
   fi

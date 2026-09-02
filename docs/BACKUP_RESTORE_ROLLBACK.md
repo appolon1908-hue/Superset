@@ -11,6 +11,9 @@ reviewed backup of the real installation before a later server-side change.
 The disposable secret directory is traversable but not writable by the
 non-root application identity; its individual files remain read-only and are
 removed by the test cleanup trap.
+The locked derived image includes the pinned Authlib OAuth client required by
+the Keycloak configuration, and image inspection must import it successfully
+before promotion or rollback.
 
 Rollback uses the previous approved digest without rebuilding, preserves persistent data, renders Compose first, and performs a controlled up operation. Never delete the volume.
 

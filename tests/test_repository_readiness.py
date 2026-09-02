@@ -98,6 +98,8 @@ class ReadinessTests(unittest.TestCase):
         self.assertIn("pg_restore", source)
         self.assertIn("ALTER TABLE certified_dataset FORCE ROW LEVEL SECURITY", source)
         self.assertIn('chmod 0555 "$secret_root"', source)
+        self.assertIn('chmod 0700 "$secret_root"', source)
+        self.assertIn("authlib==1.6.12", (ROOT / "requirements-runtime.in").read_text())
 
 if __name__ == "__main__":
     unittest.main()
