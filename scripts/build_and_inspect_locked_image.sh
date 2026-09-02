@@ -31,8 +31,8 @@ docker build \
 docker run --rm --network none --entrypoint python "$tag" -c \
   'import importlib.metadata, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker; assert importlib.metadata.version("apache-superset") == "6.1.0"'
 
-# First prove that the exact image can construct a Superset application under
-# a read-only filesystem without network access or a committed secret.
+# Prove that the exact image can construct a Superset application under a
+# read-only filesystem without network access or a committed secret.
 openssl rand -out "$startup_dir/startup_secret" -hex 32
 chmod 0444 "$startup_dir/startup_secret"
 docker run --rm --network none --read-only \
@@ -45,10 +45,9 @@ docker run --rm --network none --read-only \
   --entrypoint python "$tag" \
   -c 'from superset.app import create_app; application = create_app(); assert application is not None'
 
-# Then execute the real embedded configuration and one-shot bootstrap against a
+# Execute the real embedded configuration and one-shot bootstrap against a
 # fresh disposable metadata store. Running bootstrap twice proves idempotency;
-# the validator confirms all business roles exist and mirror their current
-# Alpha/Gamma base permissions.
+# runtime validators confirm all business roles and Celery registrations.
 openssl rand -out "$startup_dir/superset_secret_key" -hex 32
 printf '%s\n' 'sqlite:////tmp/superset-bootstrap.db' > "$startup_dir/superset_metadata_database_uri"
 printf '%s\n' 'redis://127.0.0.1:6379/0' > "$startup_dir/superset_redis_url"
@@ -63,7 +62,8 @@ docker run --rm --network none --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,mode=1777 \
   --tmpfs /app/superset_home:rw,noexec,nosuid,nodev,mode=1777 \
   --mount "type=bind,source=$startup_dir,target=/run/codestra-bootstrap-secrets,readonly" \
-  --mount "type=bind,source=$PWD/tests/validate_bootstrap_runtime.py,target=/tmp/validate_bootstrap_runtime.py,readonly" \
+  --mount "type=bind,source=$PWD/tests/validate_bootstrap_runtime.py,target=/app/pythonpath/validate_bootstrap_runtime.py,readonly" \
+  --mount "type=bind,source=$PWD/tests/validate_celery_runtime.py,target=/app/pythonpath/validate_celery_runtime.py,readonly" \
   --env KEYCLOAK_ISSUER=https://auth.codestra.co/realms/codestra \
   --env SUPERSET_OAUTH_CLIENT_ID=superset-analytics \
   --env SUPERSET_SECRET_KEY_FILE=/run/codestra-bootstrap-secrets/superset_secret_key \
@@ -76,9 +76,10 @@ docker run --rm --network none --read-only \
    superset init &&
    python /app/pythonpath/bootstrap_roles.py &&
    python /app/pythonpath/bootstrap_roles.py &&
-   python /tmp/validate_bootstrap_runtime.py'
+   python /app/pythonpath/validate_bootstrap_runtime.py &&
+   python /app/pythonpath/validate_celery_runtime.py'
 
-echo "SUPERSET_BOOTSTRAP_RUNTIME=PASS"
+echo "SUPERSET_BOOTSTRAP_AND_CELERY_RUNTIME=PASS"
 test "$(docker image inspect "$tag" --format '{{.Config.User}}')" = '10001:10001'
 
 container_id="$(docker create "$tag")"
