@@ -57,6 +57,19 @@ non-secret deployment metadata before deployment review. Repository validation
 does not connect to a database, create an identity client, provision a
 datasource, import a dashboard, or change a server.
 
+After the release signature and provenance are verified, bind the deployment
+inputs to the locally pulled signed image before Compose is rendered:
+
+```bash
+scripts/verify_release_identity.sh \
+  ghcr.io/appolon1908-hue/superset-superset@sha256:<verified-digest> \
+  <protected-production-source-sha>
+```
+
+The gate requires the exact canonical repository digest, the OCI source and
+revision labels emitted by the protected release workflow, and the non-root
+runtime user. Placeholder values are deliberately rejected.
+
 ## Promotion model
 
 Changes move through:

@@ -20,6 +20,7 @@ COMPAT_CONFIG = RUNTIME_ROOT / "superset_config.py.example"
 CANONICAL_MANAGER = RUNTIME_ROOT / "codestra_security_manager.py"
 COMPAT_MANAGER = RUNTIME_ROOT / "codestra_security_manager_v2.py"
 BOOTSTRAP = RUNTIME_ROOT / "bootstrap_roles.py"
+RELEASE_IDENTITY = ROOT / "scripts" / "verify_release_identity.sh"
 CANDIDATE_COMPOSE = RUNTIME_ROOT / "compose.candidate.yaml"
 EVIDENCE_CONTRACT = ROOT / "integration" / "staging-activation-contract-v1.json"
 EVIDENCE_WORKFLOW = (
@@ -78,6 +79,7 @@ def validate_required_files() -> None:
         CANONICAL_MANAGER,
         COMPAT_MANAGER,
         BOOTSTRAP,
+        RELEASE_IDENTITY,
         CANDIDATE_COMPOSE,
         EVIDENCE_CONTRACT,
         EVIDENCE_WORKFLOW,
@@ -170,6 +172,14 @@ def validate_identity_and_configuration() -> None:
         "FAB_API_SWAGGER_UI = False",
         "PUBLIC_ROLE_LIKE = None",
         "EMAIL_NOTIFICATIONS = False",
+        '"force_https": False',
+        '"content_security_policy_nonce_in": ["script-src"]',
+        '"superset.sql_lab"',
+        '"superset.tasks.deletion_retention"',
+        '"superset.tasks.scheduler"',
+        '"superset.tasks.version_history_retention"',
+        '"sql_lab.get_sql_results"',
+        '"deletion_retention.purge_soft_deleted"',
     ):
         if fragment not in canonical_config:
             fail(f"canonical Superset configuration omits {fragment}")
@@ -190,11 +200,27 @@ def validate_role_reconciliation() -> None:
         "security_manager.data_access_permissions",
         "target.permissions = source_permissions + preserved_data_access",
         "from codestra_security_manager import BUSINESS_SLUGS",
+        "from superset.app import create_app",
+        "app = create_app()",
     ):
         if fragment not in bootstrap:
             fail(f"role bootstrap omits {fragment}")
     if "def add_base_permissions" in bootstrap:
         fail("additive-only role synchronization is prohibited")
+
+
+def validate_release_identity_gate() -> None:
+    source = read(RELEASE_IDENTITY)
+    for fragment in (
+        "superset-superset@sha256:",
+        "org.opencontainers.image.source",
+        "org.opencontainers.image.revision",
+        "10001:10001",
+        ".RepoDigests",
+        "SUPERSET_RELEASE_IDENTITY=PASS",
+    ):
+        if fragment not in source:
+            fail(f"release identity gate omits {fragment}")
 
 
 def validate_compose(path: pathlib.Path, expected_services: set[str]) -> None:
@@ -419,6 +445,7 @@ def main() -> None:
     validate_upstream_lock()
     validate_identity_and_configuration()
     validate_role_reconciliation()
+    validate_release_identity_gate()
     validate_compose_contracts()
     validate_runtime_contracts()
     validate_evidence_gate()

@@ -40,5 +40,22 @@ class ReadinessTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
 
+    def test_security_and_worker_configuration_preserves_runtime_contracts(self) -> None:
+        config = (ROOT / "codestra/runtime-v1/superset_config.py").read_text()
+        self.assertIn('"force_https": False', config)
+        self.assertIn('"content_security_policy_nonce_in": ["script-src"]', config)
+        self.assertIn('"superset.sql_lab"', config)
+        self.assertIn('"sql_lab.get_sql_results"', config)
+        self.assertIn('"deletion_retention.purge_soft_deleted"', config)
+        bootstrap = (ROOT / "codestra/runtime-v1/bootstrap_roles.py").read_text()
+        self.assertIn("from superset.app import create_app", bootstrap)
+        self.assertIn("app = create_app()", bootstrap)
+
+    def test_release_identity_gate_is_fail_closed(self) -> None:
+        source = (ROOT / "scripts/verify_release_identity.sh").read_text()
+        self.assertIn("org.opencontainers.image.revision", source)
+        self.assertIn(".RepoDigests", source)
+        self.assertNotIn(":latest", source)
+
 if __name__ == "__main__":
     unittest.main()

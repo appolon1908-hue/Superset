@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from superset import app
+from superset.app import create_app
 
 from codestra_security_manager import BUSINESS_SLUGS
 
@@ -55,6 +55,7 @@ def reconcile_base_permissions(
     target.permissions = source_permissions + preserved_data_access
 
 
+app = create_app()
 with app.app_context():
     sm = app.appbuilder.sm
     for business in sorted(BUSINESS_SLUGS):
