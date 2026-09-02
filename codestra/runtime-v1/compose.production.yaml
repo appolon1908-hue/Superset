@@ -1,7 +1,7 @@
 name: codestra-superset-corporate
 
 x-superset-common: &superset-common
-  image: docker.io/apache/superset@sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d
+  image: docker.io/apache/superset@sha256:07d08f5dae5ffd50e4b3a1efda6abd5da1823cd8cc65172cdbb1c6d5f45b24d8
   restart: unless-stopped
   user: superset
   read_only: true
@@ -16,7 +16,7 @@ x-superset-common: &superset-common
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
     PYTHONPATH: /app/pythonpath
     CODESTRA_SUPERSET_SOURCE_REVISION: ${CODESTRA_SUPERSET_SOURCE_REVISION:?protected 40-character Superset source revision is required}
-    CODESTRA_SUPERSET_IMAGE_DIGEST: sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d
+    CODESTRA_SUPERSET_IMAGE_DIGEST: sha256:07d08f5dae5ffd50e4b3a1efda6abd5da1823cd8cc65172cdbb1c6d5f45b24d8
     KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
     SUPERSET_OAUTH_CLIENT_ID: superset-analytics
     SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key
@@ -36,6 +36,7 @@ x-superset-common: &superset-common
     - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
     - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
     - ./check_release_identity.py:/app/pythonpath/check_release_identity.py:ro
+    - ./release-identity.json:/app/pythonpath/release-identity.json:ro
     - superset_home:/app/superset_home
   tmpfs:
     - /tmp:rw,noexec,nosuid,nodev,size=128m
@@ -71,6 +72,7 @@ services:
       - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
       - ./bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro
       - ./check_release_identity.py:/app/pythonpath/check_release_identity.py:ro
+      - ./release-identity.json:/app/pythonpath/release-identity.json:ro
       - superset_home:/app/superset_home
     labels:
       codestra.business: platform

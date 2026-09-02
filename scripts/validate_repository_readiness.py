@@ -120,6 +120,12 @@ def main() -> None:
             fail(f"invalid configuration manifest entry: {relative}")
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             fail(f"configuration checksum mismatch: {relative}")
+    if manifest.get("generatedFiles") != {
+        "codestra/runtime-v1/release-identity.json": (
+            "protected_source_and_runtime_image_identity"
+        )
+    }:
+        fail("signed release identity generation policy is missing")
 
     compose_text = (ROOT / CANONICAL_RUNTIME_FILES[0]).read_text(encoding="utf-8")
     compose = yaml.safe_load(compose_text)
@@ -154,6 +160,9 @@ def main() -> None:
             fail(f"runtime source read-back missing: {name}")
         if "check_release_identity.py" not in " ".join(service.get("command", [])):
             fail(f"runtime release identity is not verified before startup: {name}")
+        mounted = " ".join(str(value) for value in service.get("volumes", []))
+        if "release-identity.json:/app/pythonpath/release-identity.json:ro" not in mounted:
+            fail(f"signed release identity is not mounted read-only: {name}")
     if services["superset-migrate"].get("profiles") != ["migrate"]:
         fail("schema migration requires the explicit migrate profile")
     for name in ("superset-web", "superset-worker", "superset-beat"):

@@ -11,7 +11,13 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with: {python-version: "3.13"}
       - name: Validate exact source and deterministic bundle
-        env: {HEAD_SHA: "${{ github.event.pull_request.head.sha }}", BASE_SHA: "${{ github.event.pull_request.base.sha }}"}
+        env:
+          HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
+          BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+          CODESTRA_ENVIRONMENT: test
+          CODESTRA_REGION: ci
+          CODESTRA_SERVER: github-actions
+          CODESTRA_SUPERSET_DEPLOYMENT_ID: exact-head-ci
         run: |
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           python3 -m pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt
@@ -22,7 +28,7 @@ jobs:
           python3 scripts/validate_codestra_review_hardening.py
           python3 scripts/validate_repository_readiness.py
           python3 -m unittest discover -s tests -p 'test_*.py'
-          python3 scripts/build_config_bundle.py --output /tmp/superset-config.tar.gz
+          python3 scripts/build_config_bundle.py --source-revision "$HEAD_SHA" --output /tmp/superset-config.tar.gz
           CODESTRA_SUPERSET_SOURCE_REVISION="$HEAD_SHA" \
             docker compose -f codestra/runtime-v1/compose.production.yaml config >/dev/null
           git diff --check "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)upstream/**'
@@ -49,8 +55,9 @@ jobs:
           docker pull "$image"
           digest="${image##*@}"
           docker image inspect "$image" | jq -e --arg digest "$digest" '.[0].RepoDigests | any(endswith("@" + $digest))'
-          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$image")" = "6.1.0"
-          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")" = "$expected_tag_commit"
+          test "$(docker image inspect --format '{{ index .Config.Labels "sha" }}' "$image")" = "$expected_tag_commit"
+          test "$(docker image inspect --format '{{ index .Config.Labels "version" }}' "$image")" = "6.1.0"
+          test "$(docker image inspect --format '{{ index .Config.Labels "target" }}' "$image")" = "$(jq -r .imageTargetLabel "$lock")"
           test "$(docker image inspect --format '{{ .Config.User }}' "$image")" = "superset"
       - name: Generate SBOM and enforce vulnerability gates
         run: |
@@ -99,6 +106,10 @@ jobs:
           printf '%s\n' "redis://${redis}:6379/0" > "$secret_root/redis_url"
           printf '%s\n' "disposable-ci-client-secret" > "$secret_root/oidc_secret"
           chmod 0444 "$secret_root"/*
+          bundle_root="${RUNNER_TEMP}/superset-config"
+          mkdir -p "$bundle_root"
+          python3 scripts/build_config_bundle.py --source-revision "$GITHUB_SHA" --output "$RUNNER_TEMP/superset-config.tar.gz"
+          tar -xzf "$RUNNER_TEMP/superset-config.tar.gz" -C "$bundle_root"
           docker network create "$network"
           docker run -d --name "$postgres" --network "$network" \
             -e POSTGRES_USER=superset -e POSTGRES_PASSWORD="$password" -e POSTGRES_DB=superset \
@@ -113,7 +124,8 @@ jobs:
               sleep 2
             done
           done
-          common=(--network "$network" -e SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py -e PYTHONPATH=/app/pythonpath -e KEYCLOAK_ISSUER=https://auth.codestra.co/realms/codestra -e SUPERSET_OAUTH_CLIENT_ID=superset-analytics -e CODESTRA_SUPERSET_SOURCE_REVISION="$GITHUB_SHA" -e CODESTRA_SUPERSET_IMAGE_DIGEST="${image##*@}" -e SUPERSET_SECRET_KEY_FILE=/run/secrets/secret_key -e SUPERSET_METADATA_DATABASE_URI_FILE=/run/secrets/database_uri -e SUPERSET_REDIS_URL_FILE=/run/secrets/redis_url -e SUPERSET_OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc_secret -v "$PWD/codestra/runtime-v1/superset_config.py:/app/pythonpath/superset_config.py:ro" -v "$PWD/codestra/runtime-v1/codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro" -v "$PWD/codestra/runtime-v1/check_release_identity.py:/app/pythonpath/check_release_identity.py:ro" -v "$PWD/codestra/runtime-v1/bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro" -v "$secret_root:/run/secrets:ro")
+          runtime_root="$bundle_root/codestra/runtime-v1"
+          common=(--network "$network" -e SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py -e PYTHONPATH=/app/pythonpath -e KEYCLOAK_ISSUER=https://auth.codestra.co/realms/codestra -e SUPERSET_OAUTH_CLIENT_ID=superset-analytics -e CODESTRA_SUPERSET_SOURCE_REVISION="$GITHUB_SHA" -e CODESTRA_SUPERSET_IMAGE_DIGEST="${image##*@}" -e SUPERSET_SECRET_KEY_FILE=/run/secrets/secret_key -e SUPERSET_METADATA_DATABASE_URI_FILE=/run/secrets/database_uri -e SUPERSET_REDIS_URL_FILE=/run/secrets/redis_url -e SUPERSET_OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc_secret -v "$runtime_root/superset_config.py:/app/pythonpath/superset_config.py:ro" -v "$runtime_root/codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro" -v "$runtime_root/check_release_identity.py:/app/pythonpath/check_release_identity.py:ro" -v "$runtime_root/release-identity.json:/app/pythonpath/release-identity.json:ro" -v "$runtime_root/bootstrap_roles.py:/app/pythonpath/bootstrap_roles.py:ro" -v "$secret_root:/run/secrets:ro")
           docker run --rm "${common[@]}" --entrypoint /bin/sh "$image" -ec 'python /app/pythonpath/check_release_identity.py && superset db upgrade && superset init && python /app/pythonpath/bootstrap_roles.py'
           docker run -d --name "$web" "${common[@]}" --health-cmd='python -c "import urllib.request; urllib.request.urlopen('\''http://127.0.0.1:8088/health'\'', timeout=3).read()"' --health-interval=3s --health-retries=40 --entrypoint /bin/sh "$image" -ec 'python /app/pythonpath/check_release_identity.py && exec gunicorn --bind=0.0.0.0:8088 --workers=1 --timeout=120 "superset.app:create_app()"'
           for attempt in $(seq 1 60); do

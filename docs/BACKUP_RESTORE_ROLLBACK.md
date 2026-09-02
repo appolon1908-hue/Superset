@@ -14,7 +14,10 @@ readiness, verify OIDC denial without an approved role, verify cross-business
 denial and record an evidence checksum. It must never overwrite production.
 
 Rollback uses the previously recorded OCI index digest and signed configuration
-bundle digest. Run the explicit `migrate` profile only when the target release's
+bundle digest. Verify that the rollback bundle's generated
+`release-identity.json` names the rollback protected SHA and runtime digest;
+mixing an old bundle with a new runtime, or vice versa, must fail closed. Run
+the explicit `migrate` profile only when the target release's
 reviewed migration instructions require it. Restore the prior metadata backup
 only when schema compatibility cannot be maintained, then validate `/health`,
 metadata `SELECT 1`, authentication, RBAC and business isolation before routing

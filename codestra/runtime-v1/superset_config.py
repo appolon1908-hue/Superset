@@ -7,9 +7,11 @@ bind to loopback and remain behind the Codestra Caddy/Keycloak boundary.
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 
+from celery.schedules import crontab
 from flask_appbuilder.security.manager import AUTH_OAUTH
 
 from codestra_security_manager import CodestraSecurityManager
@@ -55,19 +57,25 @@ WTF_CSRF_ENABLED = True
 WTF_CSRF_TIME_LIMIT = 3600
 TALISMAN_ENABLED = True
 TALISMAN_CONFIG = {
-    "force_https": True,
+    # TLS is terminated by the trusted Codestra edge. Keeping the application
+    # redirect disabled is required so the in-container HTTP health route does
+    # not redirect to TLS on a port where Gunicorn intentionally serves HTTP.
+    "force_https": False,
     "strict_transport_security": True,
     "strict_transport_security_max_age": 31536000,
     "content_security_policy": {
+        "base-uri": ["'self'"],
         "default-src": ["'self'"],
-        "script-src": ["'self'"],
+        "script-src": ["'self'", "'strict-dynamic'"],
         "style-src": ["'self'", "'unsafe-inline'"],
         "img-src": ["'self'", "data:"],
         "font-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
+        "worker-src": ["'self'", "blob:"],
         "frame-ancestors": ["'none'"],
         "object-src": ["'none'"],
     },
+    "content_security_policy_nonce_in": ["script-src"],
 }
 
 AUTH_TYPE = AUTH_OAUTH
@@ -132,9 +140,22 @@ EXPLORE_FORM_DATA_CACHE_CONFIG = {
 }
 
 
+CELERY_BEAT_SCHEDULER_EXPIRES = timedelta(weeks=1)
+
+
 class CeleryConfig:
     broker_url = REDIS_URL
     result_backend = REDIS_URL
+    imports = (
+        "superset.sql_lab",
+        "superset.tasks.deletion_retention",
+        "superset.tasks.scheduler",
+        "superset.tasks.thumbnails",
+        "superset.tasks.cache",
+        "superset.tasks.slack",
+        "superset.tasks.export_dashboard_excel",
+        "superset.tasks.version_history_retention",
+    )
     task_acks_late = True
     worker_prefetch_multiplier = 1
     task_reject_on_worker_lost = True
@@ -143,6 +164,30 @@ class CeleryConfig:
     result_serializer = "json"
     accept_content = ["json"]
     timezone = "UTC"
+    task_annotations = {
+        "sql_lab.get_sql_results": {"rate_limit": "100/s"},
+    }
+    beat_schedule = {
+        "reports.scheduler": {
+            "task": "reports.scheduler",
+            "schedule": crontab(minute="*", hour="*"),
+            "options": {
+                "expires": int(CELERY_BEAT_SCHEDULER_EXPIRES.total_seconds())
+            },
+        },
+        "reports.prune_log": {
+            "task": "reports.prune_log",
+            "schedule": crontab(minute=0, hour=0),
+        },
+        "version_history.prune_old_versions": {
+            "task": "version_history.prune_old_versions",
+            "schedule": crontab(minute=0, hour=3),
+        },
+        "deletion_retention.purge_soft_deleted": {
+            "task": "deletion_retention.purge_soft_deleted",
+            "schedule": crontab(minute=0, hour=0),
+        },
+    }
 
 
 CELERY_CONFIG = CeleryConfig

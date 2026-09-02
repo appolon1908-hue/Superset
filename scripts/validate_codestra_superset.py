@@ -45,7 +45,7 @@ REQUIRED_SERVICES = {
 }
 IMMUTABLE_IMAGE = (
     "docker.io/apache/superset@"
-    "sha256:59cd4af66006fe4cc98906eda42a771dbefdacb432f9ab083e02cdc6ff01f29d"
+    "sha256:07d08f5dae5ffd50e4b3a1efda6abd5da1823cd8cc65172cdbb1c6d5f45b24d8"
 )
 REQUIRED_SECRET_FILES = {
     "SUPERSET_SECRET_KEY_FILE",
@@ -245,6 +245,10 @@ def validate_python_configuration() -> None:
         'EMAIL_NOTIFICATIONS = False',
         'FAB_ADD_SECURITY_API = False',
         'PREVENT_UNSAFE_DB_CONNECTIONS = True',
+        '"content_security_policy_nonce_in": ["script-src"]',
+        '"superset.sql_lab"',
+        '"version_history.prune_old_versions"',
+        '"deletion_retention.purge_soft_deleted"',
     ):
         if fragment not in config_text:
             fail(f"Superset config omits corporate control: {fragment}")
