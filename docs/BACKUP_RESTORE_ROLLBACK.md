@@ -8,6 +8,9 @@ applies the supported migration and role bootstrap, checks application and
 metadata readiness, restores the dump into a separate database, and validates
 tenant RLS plus write denial. This evidence is required but does not replace a
 reviewed backup of the real installation before a later server-side change.
+The disposable secret directory is traversable but not writable by the
+non-root application identity; its individual files remain read-only and are
+removed by the test cleanup trap.
 
 Rollback uses the previous approved digest without rebuilding, preserves persistent data, renders Compose first, and performs a controlled up operation. Never delete the volume.
 

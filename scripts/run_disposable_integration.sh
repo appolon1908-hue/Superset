@@ -39,6 +39,7 @@ printf '%s\n' "postgresql+psycopg2://superset:${password}@${postgres}:5432/super
 printf '%s\n' "redis://${redis}:6379/0" >"$secret_root/redis_url"
 openssl rand -hex 32 >"$secret_root/oidc_secret"
 chmod 0444 "$secret_root"/*
+chmod 0555 "$secret_root"
 
 docker network create --internal "$network"
 docker run -d --name "$postgres" --network "$network" \
