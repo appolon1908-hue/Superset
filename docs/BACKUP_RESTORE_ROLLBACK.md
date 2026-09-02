@@ -14,6 +14,9 @@ removed by the test cleanup trap.
 The locked derived image includes the pinned Authlib OAuth client required by
 the Keycloak configuration, and image inspection must import it successfully
 before promotion or rollback.
+Runtime extras are installed without dependency resolution because the
+immutable official Superset base supplies the core dependency graph; the gate
+imports the concrete Flask OAuth integration, not merely the top-level package.
 
 Rollback uses the previous approved digest without rebuilding, preserves persistent data, renders Compose first, and performs a controlled up operation. Never delete the volume.
 

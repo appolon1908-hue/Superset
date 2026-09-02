@@ -26,7 +26,7 @@ docker build \
   --label "org.opencontainers.image.revision=$source_sha" \
   --tag "$tag" \
   .
-docker run --rm --network none --entrypoint python "$tag" -c 'import authlib, importlib.metadata, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker; assert importlib.metadata.version("apache-superset") == "6.1.0"'
+docker run --rm --network none --entrypoint python "$tag" -c 'import importlib.metadata, gevent, psycopg2; from authlib.integrations.flask_client import OAuth; from gunicorn.workers.ggevent import GeventWorker; assert importlib.metadata.version("apache-superset") == "6.1.0"'
 startup_dir="${RUNNER_TEMP:-/tmp}/superset-startup-${source_sha}"
 mkdir -p "$startup_dir"
 openssl rand -out "$startup_dir/secret" -hex 32

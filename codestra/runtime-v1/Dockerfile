@@ -12,9 +12,9 @@ LABEL codestra.upstream.executable-authority="apache-superset-6.1.0-official-ima
 USER 0:0
 RUN install -d -o 10001 -g 10001 -m 0555 /app/pythonpath /usr/share/codestra
 COPY --chmod=0444 requirements-runtime.txt /tmp/requirements-runtime.txt
-RUN uv pip install --python /app/.venv/bin/python --require-hashes --no-cache \
+RUN uv pip install --python /app/.venv/bin/python --require-hashes --no-deps --no-cache \
       --requirement /tmp/requirements-runtime.txt \
-    && python -c 'import authlib, gevent, psycopg2; from gunicorn.workers.ggevent import GeventWorker' \
+    && python -c 'import gevent, psycopg2; from authlib.integrations.flask_client import OAuth; from gunicorn.workers.ggevent import GeventWorker' \
     && rm /tmp/requirements-runtime.txt
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/superset_config.py.example /app/pythonpath/superset_config.py
 COPY --chown=10001:10001 --chmod=0444 codestra/runtime-v1/codestra_security_manager.py /app/pythonpath/codestra_security_manager.py

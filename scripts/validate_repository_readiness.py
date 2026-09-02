@@ -55,7 +55,7 @@ def main() -> None:
     for token in ("FROM ${SUPERSET_BASE_IMAGE}", "superset_config.py.example", "runtime-base.lock.json", "USER 10001:10001"):
         if token not in dockerfile:
             fail(f"Dockerfile release boundary missing: {token}")
-    for token in ("requirements-runtime.txt", "uv pip install", "--require-hashes", "import authlib, gevent, psycopg2"):
+    for token in ("requirements-runtime.txt", "uv pip install", "--require-hashes", "--no-deps", "from authlib.integrations.flask_client import OAuth"):
         if token not in dockerfile:
             fail(f"locked Superset runtime dependency boundary missing: {token}")
     runtime_input = (ROOT / "requirements-runtime.in").read_text(encoding="utf-8").splitlines()
@@ -76,7 +76,7 @@ def main() -> None:
     if "--hash=sha256:" not in runtime_lock:
         fail("runtime dependency lock must contain exact distribution hashes")
     inspection = (ROOT / "scripts/build_and_inspect_locked_image.sh").read_text(encoding="utf-8")
-    for token in ("authlib, importlib.metadata, gevent, psycopg2", "from superset.app import create_app", "--network none", "--read-only"):
+    for token in ("from authlib.integrations.flask_client import OAuth", "from superset.app import create_app", "--network none", "--read-only"):
         if token not in inspection:
             fail(f"Superset runtime inspection omits: {token}")
     compose = yaml.safe_load((ROOT / "codestra/runtime-v1/compose.candidate.yaml").read_text(encoding="utf-8"))
