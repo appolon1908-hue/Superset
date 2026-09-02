@@ -1,6 +1,7 @@
 *
 !.dockerignore
 !requirements-runtime.txt
+!requirements-oauth.txt
 !codestra/
 codestra/*
 !codestra/runtime-v1/
