@@ -11,6 +11,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from celery.schedules import crontab
 from flask_appbuilder.security.manager import AUTH_OAUTH
 
 from codestra_security_manager import (
@@ -132,19 +133,25 @@ REMEMBER_COOKIE_HTTPONLY = True
 REMEMBER_COOKIE_SAMESITE = "Lax"
 TALISMAN_ENABLED = True
 TALISMAN_CONFIG = {
-    "force_https": True,
+    # TLS and redirects are enforced by the trusted Codestra edge. Application
+    # force_https must remain disabled so the loopback HTTP health probe is not
+    # redirected to TLS on Gunicorn's plain-HTTP container port.
+    "force_https": False,
     "strict_transport_security": True,
     "strict_transport_security_max_age": 31536000,
     "content_security_policy": {
+        "base-uri": ["'self'"],
         "default-src": ["'self'"],
-        "script-src": ["'self'"],
+        "script-src": ["'self'", "'strict-dynamic'"],
         "style-src": ["'self'", "'unsafe-inline'"],
         "img-src": ["'self'", "data:"],
         "font-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
+        "worker-src": ["'self'", "blob:"],
         "frame-ancestors": ["'none'"],
         "object-src": ["'none'"],
     },
+    "content_security_policy_nonce_in": ["script-src"],
 }
 CONTENT_SECURITY_POLICY_WARNING = False
 X_FRAME_OPTIONS = "DENY"
@@ -176,10 +183,22 @@ EXPLORE_FORM_DATA_CACHE_CONFIG = {
 }
 RATELIMIT_STORAGE_URI = REDIS_URL
 
+CELERY_BEAT_SCHEDULER_EXPIRES = timedelta(weeks=1)
+
 
 class CeleryConfig:
     broker_url = REDIS_URL
     result_backend = REDIS_URL
+    imports = (
+        "superset.sql_lab",
+        "superset.tasks.deletion_retention",
+        "superset.tasks.scheduler",
+        "superset.tasks.thumbnails",
+        "superset.tasks.cache",
+        "superset.tasks.slack",
+        "superset.tasks.export_dashboard_excel",
+        "superset.tasks.version_history_retention",
+    )
     task_acks_late = True
     worker_prefetch_multiplier = 1
     task_reject_on_worker_lost = True
@@ -188,6 +207,30 @@ class CeleryConfig:
     result_serializer = "json"
     accept_content = ["json"]
     timezone = "UTC"
+    task_annotations = {
+        "sql_lab.get_sql_results": {"rate_limit": "100/s"},
+    }
+    beat_schedule = {
+        "reports.scheduler": {
+            "task": "reports.scheduler",
+            "schedule": crontab(minute="*", hour="*"),
+            "options": {
+                "expires": int(CELERY_BEAT_SCHEDULER_EXPIRES.total_seconds())
+            },
+        },
+        "reports.prune_log": {
+            "task": "reports.prune_log",
+            "schedule": crontab(minute=0, hour=0),
+        },
+        "version_history.prune_old_versions": {
+            "task": "version_history.prune_old_versions",
+            "schedule": crontab(minute=0, hour=3),
+        },
+        "deletion_retention.purge_soft_deleted": {
+            "task": "deletion_retention.purge_soft_deleted",
+            "schedule": crontab(minute=0, hour=0),
+        },
+    }
 
 
 CELERY_CONFIG = CeleryConfig
