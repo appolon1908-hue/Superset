@@ -54,6 +54,9 @@ tree SHA.
 | `codestra/runtime-v1/codestra_security_manager.py` | Fail-closed Keycloak identity and role-claim mapping |
 | `codestra/runtime-v1/bootstrap_roles.py` | Idempotent business-role reconciliation after explicit initialization |
 | `codestra/runtime-v1/check_metadata_readiness.py` | Web liveness plus metadata-database `SELECT 1` readiness |
+| `scripts/build_and_inspect_locked_image.sh` | Exact image, startup, migration, role, Celery, and embedded-file proof |
+| `scripts/run_disposable_integration.sh` | Internal PostgreSQL/Redis readiness, backup/restore, RLS, and write-denial proof |
+| `scripts/verify_release_identity.sh` | Post-signature OCI source, revision, user, and digest readback |
 | `codestra/api/` | Codestra read-only service/API contract |
 | `codestra/docs/` | Analytics governance and operating model |
 | `integration/` | Non-activating monitoring and evidence contracts |
@@ -81,8 +84,10 @@ migration, `superset init`, and Codestra role reconciliation are isolated in the
 - Celery registers SQL Lab and supported maintenance tasks and retains bounded
   scheduler, report-log pruning, version-history, and soft-delete retention
   schedules. Alert/report delivery remains disabled.
-- Secrets are read only from externally mounted files. No default password,
-  client secret, private key, customer extract, or live token belongs in Git.
+- Secrets are read only from externally mounted files. The disposable CI secret
+  directory is searchable by UID 10001 but not listable, while individual files
+  are read-only. No default password, client secret, private key, customer
+  extract, or live token belongs in Git.
 
 ## Validation
 
@@ -101,13 +106,38 @@ python3 scripts/validate_repository_readiness.py
 python3 scripts/validate_runtime_identity.py
 python3 -m unittest discover -s tests -p 'test_*.py'
 bash scripts/build_and_inspect_locked_image.sh "$(git rev-parse HEAD)"
+bash scripts/run_disposable_integration.sh "$(git rev-parse HEAD)"
 ```
 
 The exact-image gate builds the locked image, starts Superset without network
 access on a read-only filesystem, migrates a disposable metadata database, runs
 `superset init`, executes the Codestra role bootstrap twice, verifies every
-business role and permission mirror, and compares the image's embedded files to
-the reviewed source. It does not contact a production server or datasource.
+business role and permission mirror, validates Celery task and beat
+registration, and compares the image's embedded files to the reviewed source.
+
+The separate disposable integration uses only an internal Docker network and
+pinned PostgreSQL and Redis images. It proves real metadata readiness, backup and
+restore into a separate database, database-native RLS for two businesses,
+unauthorized-business denial, and write denial. Neither test contacts a
+production server, production datasource, Keycloak runtime, or provider.
+
+## Signed release identity
+
+After the exact production source SHA is released, first verify the image's
+GitHub/Sigstore signature, provenance, SBOM, and vulnerability evidence. Pull
+only the verified digest, then bind the deployment inputs to the local OCI
+object:
+
+```bash
+scripts/verify_release_identity.sh \
+  ghcr.io/appolon1908-hue/superset-superset@sha256:<verified-digest> \
+  <protected-production-source-sha>
+```
+
+The readback requires the canonical repository digest, the exact OCI source and
+revision labels emitted by the protected release workflow, and runtime user
+`10001:10001`. A mutable tag, differently labeled digest, wrong source SHA, or
+unpulled image fails closed.
 
 ## Promotion model
 
