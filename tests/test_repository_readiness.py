@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import unittest
 from pathlib import Path
@@ -101,6 +102,25 @@ class ReadinessTests(unittest.TestCase):
         )
         self.assertIn("tests/validate_bootstrap_runtime.py", inspection)
         self.assertIn("tests/validate_celery_runtime.py", inspection)
+
+    def test_oauth_runtime_dependency_is_exact_and_hash_locked(self) -> None:
+        oauth_input = (ROOT / "requirements-oauth.in").read_text().splitlines()
+        oauth_lock = (ROOT / "requirements-oauth.txt").read_text()
+        dockerfile = (
+            ROOT / "codestra/runtime-v1/Dockerfile"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(oauth_input, ["authlib==1.6.12"])
+        self.assertEqual(
+            set(re.findall(r"--hash=sha256:([0-9a-f]{64})", oauth_lock)),
+            {
+                "0656d8482f28fc8221929d5f35b2bde5d13e10555ebc06b4561b0d622e83b1bd",
+                "e9229ad7fde610b139dd12f5edbe97eab9ee78bfb85691247e767727850b99ab",
+            },
+        )
+        self.assertIn("requirements-oauth.txt", dockerfile)
+        self.assertIn("--no-deps", dockerfile)
+        self.assertIn('metadata.version("authlib") == "1.6.12"', dockerfile)
+        self.assertIn('metadata.version("cryptography") == "46.0.5"', dockerfile)
 
     def test_disposable_integration_is_private_and_secret_safe(self) -> None:
         integration = (
