@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from superset import app
+from superset.app import create_app
 
 from codestra_security_manager import BUSINESS_SLUGS
 
@@ -55,14 +55,32 @@ def reconcile_base_permissions(
     target.permissions = source_permissions + preserved_data_access
 
 
-with app.app_context():
-    sm = app.appbuilder.sm
-    for business in sorted(BUSINESS_SLUGS):
+def main() -> None:
+    """Create and reconcile every Codestra role against an initialized app."""
+
+    application = create_app()
+    with application.app_context():
+        security_manager = application.appbuilder.sm
+        for business in sorted(BUSINESS_SLUGS):
+            reconcile_base_permissions(
+                security_manager,
+                "Gamma",
+                f"Codestra Business {business} Viewer",
+            )
+            reconcile_base_permissions(
+                security_manager,
+                "Alpha",
+                f"Codestra Business {business} Analyst",
+            )
         reconcile_base_permissions(
-            sm, "Gamma", f"Codestra Business {business} Viewer"
+            security_manager,
+            "Gamma",
+            "Codestra Security Auditor",
         )
-        reconcile_base_permissions(
-            sm, "Alpha", f"Codestra Business {business} Analyst"
-        )
-    reconcile_base_permissions(sm, "Gamma", "Codestra Security Auditor")
-    sm.get_session.commit()
+        security_manager.session.commit()
+
+    print("CODESTRA_SUPERSET_ROLE_BOOTSTRAP=PASS")
+
+
+if __name__ == "__main__":
+    main()

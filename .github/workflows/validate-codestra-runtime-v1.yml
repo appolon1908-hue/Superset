@@ -7,12 +7,7 @@ on:
       - "scripts/validate_codestra_repository.py"
       - ".github/workflows/validate-codestra-runtime-v1.yml"
   push:
-    branches:
-      - development
-      - test
-      - staging
-      - production
-      - main
+    branches: [development, test, staging, production, main]
     paths:
       - "codestra/runtime-v1/**"
       - "scripts/validate_codestra_repository.py"
@@ -31,10 +26,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out exact head
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
 
@@ -43,47 +40,46 @@ jobs:
           python -m pip install --disable-pip-version-check --no-cache-dir
           PyYAML==6.0.3
 
-      - name: Compile the complete runtime overlay
+      - name: Compile and validate the complete runtime overlay
         env:
           PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
         run: |
           python -m py_compile codestra/runtime-v1/*.py
           python -m py_compile scripts/validate_codestra_repository.py
+          python scripts/validate_codestra_repository.py
 
-      - name: Validate repository and runtime contracts
-        run: python scripts/validate_codestra_repository.py
-
-      - name: Render candidate and canonical Compose contracts
+      - name: Render the inactive deployment and bootstrap candidates
         env:
-          SUPERSET_IMAGE: apache/superset:99.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          CODESTRA_SUPERSET_IMAGE: ghcr.io/appolon1908-hue/superset-superset@sha256:2222222222222222222222222222222222222222222222222222222222222222
+          CODESTRA_SOURCE_SHA: "0000000000000000000000000000000000000000"
+          CODESTRA_IMAGE_DIGEST: sha256:2222222222222222222222222222222222222222222222222222222222222222
           CODESTRA_ENVIRONMENT: test
           CODESTRA_REGION: ci
           CODESTRA_SERVER: github-actions
           CODESTRA_SUPERSET_DEPLOYMENT_ID: exact-head-ci
           CODESTRA_ANALYTICS_NETWORK: codestra-analytics
           CODESTRA_OBSERVABILITY_NETWORK: codestra-observability
+          SUPERSET_SECRET_KEY_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_METADATA_DATABASE_URI_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_REDIS_URL_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_OIDC_CLIENT_SECRET_FILE_SOURCE: /tmp/not-read-during-render
         run: |
           docker compose \
             -f codestra/runtime-v1/compose.candidate.yaml \
             --profile candidate-after-approval \
+            --profile bootstrap-after-approval \
             config > /tmp/candidate-compose.yaml
-          docker compose \
-            -f codestra/runtime-v1/compose.yaml \
-            --profile bootstrap \
-            config > /tmp/runtime-compose.yaml
           test -s /tmp/candidate-compose.yaml
-          test -s /tmp/runtime-compose.yaml
           test "$(grep -c 'host_ip: 127.0.0.1' /tmp/candidate-compose.yaml)" -eq 1
-          test "$(grep -c 'host_ip: 127.0.0.1' /tmp/runtime-compose.yaml)" -eq 1
           ! grep -Eq \
             ':latest([[:space:]]|$)|privileged: true|network_mode: host|pid: host|SUPERSET_SECRET_KEY=|SUPERSET_OIDC_CLIENT_SECRET=' \
-            /tmp/candidate-compose.yaml /tmp/runtime-compose.yaml
+            /tmp/candidate-compose.yaml
 
       - name: Confirm migrations are one-shot only
         run: |
-          ! grep -A40 '^  superset-web:' codestra/runtime-v1/compose.yaml \
+          ! grep -A45 '^  superset-web:' codestra/runtime-v1/compose.candidate.yaml \
             | grep -Eq 'db upgrade|superset init'
-          grep -A30 '^  superset-bootstrap:' codestra/runtime-v1/compose.yaml \
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
             | grep -q 'profiles:'
-          grep -A30 '^  superset-bootstrap:' codestra/runtime-v1/compose.yaml \
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
             | grep -q 'superset db upgrade'

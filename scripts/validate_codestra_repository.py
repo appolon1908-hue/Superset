@@ -21,7 +21,6 @@ CANONICAL_MANAGER = RUNTIME_ROOT / "codestra_security_manager.py"
 COMPAT_MANAGER = RUNTIME_ROOT / "codestra_security_manager_v2.py"
 BOOTSTRAP = RUNTIME_ROOT / "bootstrap_roles.py"
 CANDIDATE_COMPOSE = RUNTIME_ROOT / "compose.candidate.yaml"
-RUNTIME_COMPOSE = RUNTIME_ROOT / "compose.yaml"
 EVIDENCE_CONTRACT = ROOT / "integration" / "staging-activation-contract-v1.json"
 EVIDENCE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "controlled-intake-staging-activation-gate.yml"
@@ -80,7 +79,6 @@ def validate_required_files() -> None:
         COMPAT_MANAGER,
         BOOTSTRAP,
         CANDIDATE_COMPOSE,
-        RUNTIME_COMPOSE,
         EVIDENCE_CONTRACT,
         EVIDENCE_WORKFLOW,
     )
@@ -220,9 +218,6 @@ def validate_compose(path: pathlib.Path, expected_services: set[str]) -> None:
         if forbidden in source:
             fail(f"{path.name} contains forbidden runtime drift: {forbidden}")
     for required in (
-        "./superset_config.py:/app/pythonpath/superset_config.py:ro",
-        "./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro",
-        "./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro",
         "SUPERSET_SECRET_KEY_FILE: /run/secrets/superset_secret_key",
         "SUPERSET_METADATA_DATABASE_URI_FILE: /run/secrets/superset_metadata_database_uri",
         "KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra",
@@ -247,6 +242,14 @@ def validate_compose(path: pathlib.Path, expected_services: set[str]) -> None:
             if field not in limits:
                 fail(f"{path.name}:{name} lacks {field} limit")
 
+        expected_restart = (
+            "no" if name == "superset-bootstrap" else "unless-stopped"
+        )
+        if service.get("restart") != expected_restart:
+            fail(
+                f"{path.name}:{name} restart policy must be {expected_restart}"
+            )
+
     web = services["superset-web"]
     ports = web.get("ports", [])
     if len(ports) != 1 or not str(ports[0]).startswith("127.0.0.1:"):
@@ -262,17 +265,15 @@ def validate_compose(path: pathlib.Path, expected_services: set[str]) -> None:
 
 
 def validate_compose_contracts() -> None:
+    if (RUNTIME_ROOT / "compose.yaml").exists():
+        fail("ambiguous second Compose runtime authority remains")
     validate_compose(
         CANDIDATE_COMPOSE,
-        {"superset-web", "superset-worker", "superset-beat"},
-    )
-    validate_compose(
-        RUNTIME_COMPOSE,
         {"superset-web", "superset-worker", "superset-beat", "superset-bootstrap"},
     )
-    runtime = load_yaml(RUNTIME_COMPOSE)
+    runtime = load_yaml(CANDIDATE_COMPOSE)
     bootstrap = runtime["services"]["superset-bootstrap"]
-    if bootstrap.get("profiles") != ["bootstrap"]:
+    if bootstrap.get("profiles") != ["bootstrap-after-approval"]:
         fail("runtime bootstrap must remain an explicit one-shot profile")
     command = " ".join(str(part) for part in bootstrap.get("command", []))
     for fragment in ("superset db upgrade", "superset init", "bootstrap_roles.py"):
