@@ -89,9 +89,10 @@ migration, `superset init`, and Codestra role reconciliation are isolated in the
 - Application-level HTTPS redirection is disabled because TLS and redirects are
   enforced at the trusted edge; this preserves the loopback HTTP health probe.
 - CSP retains Superset's nonce support and `strict-dynamic` behavior.
-- Celery registers SQL Lab and supported maintenance tasks and retains bounded
-  scheduler, report-log pruning, version-history, and soft-delete retention
-  schedules. Alert/report delivery remains disabled.
+- Celery registers the SQL Lab and Superset 6.1 reporting tasks that the exact
+  image proves executable. Beat is limited to bounded report scheduling and
+  report-log pruning; newer version-history and soft-delete tasks are not
+  claimed by this release. Alert/report delivery remains disabled.
 - Secrets are read only from externally mounted files. The disposable CI secret
   directory is searchable by UID 10001 but not listable, while individual files
   are read-only. No default password, client secret, private key, customer
