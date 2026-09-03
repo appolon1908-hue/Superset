@@ -343,6 +343,14 @@ def validate_compose() -> None:
         if service.get("profiles") != expected_profile:
             fail(f"Superset service has incorrect inactive profile: {name}")
 
+        expected_restart = (
+            "no" if name == "superset-bootstrap" else "unless-stopped"
+        )
+        if service.get("restart") != expected_restart:
+            fail(
+                f"Superset service has incorrect restart policy: {name}"
+            )
+
     normal_services = ("superset-web", "superset-worker", "superset-beat")
     for name in normal_services:
         command = " ".join(str(part) for part in services[name].get("command", []))

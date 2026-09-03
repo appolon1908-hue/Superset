@@ -58,6 +58,7 @@ x-superset-common: &superset-common
 services:
   superset-web:
     <<: *superset-common
+    restart: unless-stopped
     command:
       - gunicorn
       - --bind=0.0.0.0:8088
@@ -103,6 +104,7 @@ services:
 
   superset-worker:
     <<: *superset-common
+    restart: unless-stopped
     command:
       - celery
       - --app=superset.tasks.celery_app:app
@@ -131,6 +133,7 @@ services:
 
   superset-beat:
     <<: *superset-common
+    restart: unless-stopped
     pids_limit: 128
     command:
       - celery

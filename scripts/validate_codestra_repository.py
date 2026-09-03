@@ -242,6 +242,14 @@ def validate_compose(path: pathlib.Path, expected_services: set[str]) -> None:
             if field not in limits:
                 fail(f"{path.name}:{name} lacks {field} limit")
 
+        expected_restart = (
+            "no" if name == "superset-bootstrap" else "unless-stopped"
+        )
+        if service.get("restart") != expected_restart:
+            fail(
+                f"{path.name}:{name} restart policy must be {expected_restart}"
+            )
+
     web = services["superset-web"]
     ports = web.get("ports", [])
     if len(ports) != 1 or not str(ports[0]).startswith("127.0.0.1:"):
