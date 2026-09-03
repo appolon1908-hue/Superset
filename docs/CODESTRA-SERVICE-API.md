@@ -6,9 +6,9 @@ This repository owns the **certified-read-only-business-analytics-authority** fo
 
 Apache Superset keeps its native API and protocol. The shared Codestra control plane in `appolon1908-hue/Codestra-Telemetry` performs only sanitized health, readiness, contract, topology, and immutable-release read-back. It never proxies dashboard, chart, dataset, SQL, credential, secret, or mutation APIs.
 
-Canonical hostname: `supe.codestra.media`  
-Native exposure: `loopback_edge_only`  
-Deployment class: `central`  
+Canonical hostname: `supe.codestra.media`
+Native exposure: `loopback_edge_only`
+Deployment class: `central`
 Contract: `codestra/api/service-contract.v1.json`
 
 ## Native operations
