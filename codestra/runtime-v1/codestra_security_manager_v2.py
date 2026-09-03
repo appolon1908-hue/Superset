@@ -36,6 +36,15 @@ BUSINESS_ROLE_KEYS = {
 }
 APPROVED_ROLE_KEYS = GLOBAL_ROLE_KEYS | BUSINESS_ROLE_KEYS
 
+# The existing Keycloak observability authority predates the application-local
+# Superset role names. Translate only those three global roles; never infer a
+# business role from a global observability claim.
+KEYCLOAK_ROLE_ALIASES = {
+    "observability-viewer": {"superset-viewer"},
+    "observability-operator": {"superset-analyst"},
+    "observability-admin": {"superset-admin"},
+}
+
 
 def keycloak_issuer() -> str:
     """Return a validated, absolute HTTPS Keycloak issuer."""
@@ -60,6 +69,13 @@ def _claim_roles(value: Any) -> set[str]:
     if not isinstance(value, list):
         return set()
     return {role for role in value if isinstance(role, str) and role}
+
+
+def _approved_role_keys(claimed_roles: set[str]) -> list[str]:
+    role_keys = claimed_roles & APPROVED_ROLE_KEYS
+    for claimed_role in claimed_roles:
+        role_keys.update(KEYCLOAK_ROLE_ALIASES.get(claimed_role, set()))
+    return sorted(role_keys)
 
 
 class CodestraSecurityManager(SupersetSecurityManager):
@@ -106,7 +122,7 @@ class CodestraSecurityManager(SupersetSecurityManager):
 
         realm_roles = _claim_roles(realm_access.get("roles"))
         client_roles = _claim_roles(client_access.get("roles"))
-        role_keys = sorted((realm_roles | client_roles) & APPROVED_ROLE_KEYS)
+        role_keys = _approved_role_keys(realm_roles | client_roles)
         if not role_keys:
             raise PermissionError("No approved Codestra Superset role was supplied")
 
