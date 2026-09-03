@@ -66,4 +66,7 @@ with app.app_context():
             sm, "Alpha", f"Codestra Business {business} Analyst"
         )
     reconcile_base_permissions(sm, "Gamma", "Codestra Security Auditor")
-    sm.get_session.commit()
+    # Superset 6 removed the deprecated ``get_session`` security-manager
+    # attribute.  Commit through the supported session property so the
+    # one-shot bootstrap remains compatible with the locked runtime image.
+    sm.session.commit()

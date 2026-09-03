@@ -51,6 +51,8 @@ class ReadinessTests(unittest.TestCase):
         bootstrap = (ROOT / "codestra/runtime-v1/bootstrap_roles.py").read_text()
         self.assertIn("from superset.app import create_app", bootstrap)
         self.assertIn("app = create_app()", bootstrap)
+        self.assertIn("sm.session.commit()", bootstrap)
+        self.assertNotIn("sm.get_session", bootstrap)
 
     def test_release_identity_gate_is_fail_closed(self) -> None:
         source = (ROOT / "scripts/verify_release_identity.sh").read_text()

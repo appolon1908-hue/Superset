@@ -17,6 +17,9 @@ before promotion or rollback.
 Runtime extras are installed without dependency resolution because the
 immutable official Superset base supplies the core dependency graph; the gate
 imports the concrete Flask OAuth integration, not merely the top-level package.
+The role bootstrap commits through Superset 6's supported security-manager
+session property; the removed `get_session` compatibility path is forbidden by
+the repository validator.
 
 Rollback uses the previous approved digest without rebuilding, preserves persistent data, renders Compose first, and performs a controlled up operation. Never delete the volume.
 

@@ -303,6 +303,12 @@ def validate_compose_contracts() -> None:
     if "db upgrade" in web_command or "superset init" in web_command:
         fail("normal web startup may not run migrations or initialization")
 
+    bootstrap_source = (RUNTIME_ROOT / "bootstrap_roles.py").read_text()
+    if "sm.session.commit()" not in bootstrap_source:
+        fail("role bootstrap must commit through the supported Superset session")
+    if "sm.get_session" in bootstrap_source:
+        fail("role bootstrap uses removed Superset get_session API")
+
 
 def validate_runtime_contracts() -> None:
     runtime = load_json(RUNTIME_ROOT / "runtime.v1.json")
