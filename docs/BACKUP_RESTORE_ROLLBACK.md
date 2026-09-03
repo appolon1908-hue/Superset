@@ -64,6 +64,11 @@ restore rehearsal for the actual installation before a server-side change.
 9. Record rollback start/end time, result, data-loss assessment, restored
    identities, and follow-up issue.
 
+The long-running web, worker, and beat services must retain
+`restart: unless-stopped` in both the promoted and rollback manifests. The
+bootstrap service must retain `restart: "no"`; replaying migrations or role
+initialization through an automatic restart is prohibited.
+
 A source/revision/digest mismatch, failed restore proof, failed readiness check,
 missing previous artifact, or uncertain schema compatibility blocks rollback
 execution until a safe recovery path is reviewed.

@@ -48,9 +48,9 @@ server or datasource.
    toward TLS on Gunicorn's plain-HTTP container port.
 4. The custom CSP omitted Superset's script nonce injection and
    `strict-dynamic`, which could block OAuth and SPA inline scripts.
-5. The custom Celery configuration omitted Superset's SQL Lab and maintenance
-   task imports and beat schedules, allowing unregistered asynchronous tasks and
-   missing retention work.
+5. The custom Celery configuration omitted Superset's SQL Lab and supported
+   reporting task imports and beat schedules, allowing unregistered
+   asynchronous tasks and missing report-log pruning.
 6. The imported `upstream/` source tree recorded a commit but did not bind the
    actual Git tree or prevent text normalization.
 7. The root README still described superseded duplicate Compose and
@@ -84,16 +84,18 @@ server or datasource.
    network-disabled container, runs `superset db upgrade`, `superset init`, and
    the role bootstrap twice, then verifies every business role mirrors the
    current Gamma or Alpha permission set.
-3. The exact image loads Celery default modules and proves SQL Lab, scheduler,
-   report-log pruning, version-history pruning, and soft-delete retention tasks
-   and beat schedules are registered.
+3. The exact image loads Celery default modules and proves the executable
+   Superset 6.1 SQL Lab, report scheduler, and report-log pruning task set and
+   beat schedules are registered. It does not claim newer source-only retention
+   tasks that the locked 6.1 image cannot execute.
 4. TLS and redirects remain the trusted edge's responsibility; application
    `force_https` is disabled so the internal liveness probe remains valid.
 5. CSP nonce injection and `strict-dynamic` are restored while framing,
    cross-origin, and object restrictions remain fail closed.
-6. Celery restores SQL Lab and supported maintenance task registration,
-   scheduler expiry, report-log pruning, version-history pruning, and
-   soft-delete retention schedules. External report delivery remains disabled.
+6. Celery restores SQL Lab and supported reporting task registration, scheduler
+   expiry, and report-log pruning. Newer version-history and soft-delete task
+   modules remain intentionally absent until an upgraded exact image proves
+   them executable. External report delivery remains disabled.
 7. `.gitattributes` preserves imported bytes and
    `CODESTRA_UPSTREAM_LOCK.json` binds `upstream/` to tree
    `e8eb116376da9ec2a53b374b67f4b1cf9480262b`.

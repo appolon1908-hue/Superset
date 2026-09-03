@@ -54,6 +54,12 @@ class ReadinessTests(unittest.TestCase):
         self.assertTrue(
             all(set(value) == {"file"} for value in compose["secrets"].values())
         )
+        for service_name in ("superset-web", "superset-worker", "superset-beat"):
+            self.assertEqual(
+                compose["services"][service_name]["restart"],
+                "unless-stopped",
+            )
+        self.assertEqual(compose["services"]["superset-bootstrap"]["restart"], "no")
 
     def test_runtime_identity_rejects_mutable_or_misaligned_images(self) -> None:
         environment = dict(os.environ)

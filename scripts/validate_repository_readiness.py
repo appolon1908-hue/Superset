@@ -352,6 +352,11 @@ def validate_compose_and_release() -> None:
         "bootstrap-after-approval"
     ]:
         fail("Superset bootstrap must remain inactive without explicit approval")
+    for service_name in ("superset-web", "superset-worker", "superset-beat"):
+        if compose["services"][service_name].get("restart") != "unless-stopped":
+            fail(f"{service_name} must survive process and daemon restarts")
+    if compose["services"]["superset-bootstrap"].get("restart") != "no":
+        fail("Superset bootstrap must remain a non-restarting one-shot")
 
     runtime = load("codestra/runtime-v1/runtime.v1.json")
     if runtime.get("status") != "CONFIG_PREPARED_NOT_DEPLOYED" or any(

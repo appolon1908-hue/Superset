@@ -91,6 +91,8 @@
     "noNewPrivileges": true,
     "loopbackOnlyNativePort": true,
     "resourceLimitsRequired": true,
+    "longRunningRestartPolicy": "unless-stopped",
+    "bootstrapRestartPolicy": "no",
     "secureCookies": true,
     "csrfProtection": true,
     "contentSecurityPolicy": true,
