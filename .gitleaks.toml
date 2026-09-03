@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Official upstream documentation and test fixtures excluded from the image build context"
+paths = [
+  '''^upstream/(docs?|documentation|examples?|CHANGELOG|RELEASING|RESOURCES)/''',
+  '''^upstream/.*(_test\.py$|test_.*\.py$|\.(spec|test)\.[jt]sx?$|/tests?/|/test-?data/|/fixtures?/|/__snapshots__/)''',
+  '''^upstream/tests/''',
+  '''^upstream/.*(README|PRODUCTION|SECURITY)\.md$''',
+  '''^upstream/.*fixtures\.[jt]s$''',
+  '''^upstream/superset/mcp_service/(chart/tool/get_chart_info|dashboard/tool/get_dashboard_info)\.py$''',
+]

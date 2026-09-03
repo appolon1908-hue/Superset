@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0",
+  "component": "superset",
+  "role": "business-intelligence-and-management-analytics",
+  "canonicalHostname": "supe.codestra.media",
+  "exposure": "authenticated_browser",
+  "status": "SOURCE_PREPARED_NOT_DEPLOYED",
+  "identity": {
+    "provider": "keycloak",
+    "ssoRequired": true,
+    "defaultRole": "read_only",
+    "adminEditorSeparation": true
+  },
+  "businessScope": ["codestra", "moneybee", "beyvra", "breero", "larim-a", "transportation", "booked4seasons", "social", "klyrow", "telnexa", "kyqra", "restaurant", "provisioning"],
+  "analyticsDomains": ["executive", "revenue", "usage", "sla", "campaigns", "delivery", "provider_quality", "operations", "customer_success", "cost_margin", "capacity_trends"],
+  "features": {
+    "rowLevelSecurity": true,
+    "businessScopedDatasets": true,
+    "semanticLayer": true,
+    "readOnlyDataSources": true,
+    "executiveDashboards": true,
+    "scheduledReportGeneration": true,
+    "datasetCertification": true,
+    "piiMasking": true,
+    "queryLimits": true,
+    "auditability": true
+  },
+  "dataPolicy": {
+    "productionWriteConnections": false,
+    "directProviderAdminDatabaseAccess": false,
+    "preferCuratedReadModelsOrReplicas": true,
+    "credentialsFromOpenBaoOrSecretFiles": true
+  },
+  "financialBoundaries": {
+    "moneybee": "Analytics are read-only and must not submit lenders, issue funding actions or change loan state.",
+    "beyvra": "Analytics are read-only and must not place/cancel/replace trades, alter balances/positions or receive trade-signing credentials."
+  }
+}

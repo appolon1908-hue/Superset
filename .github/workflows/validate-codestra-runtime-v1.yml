@@ -1,0 +1,85 @@
+name: Validate Codestra Superset runtime v1
+
+on:
+  pull_request:
+    paths:
+      - "codestra/runtime-v1/**"
+      - "scripts/validate_codestra_repository.py"
+      - ".github/workflows/validate-codestra-runtime-v1.yml"
+  push:
+    branches: [development, test, staging, production, main]
+    paths:
+      - "codestra/runtime-v1/**"
+      - "scripts/validate_codestra_repository.py"
+      - ".github/workflows/validate-codestra-runtime-v1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: superset-runtime-v1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install pinned validation dependency
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          PyYAML==6.0.3
+
+      - name: Compile and validate the complete runtime overlay
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-superset-pycache
+        run: |
+          python -m py_compile codestra/runtime-v1/*.py
+          python -m py_compile scripts/validate_codestra_repository.py
+          python scripts/validate_codestra_repository.py
+
+      - name: Render the inactive deployment and bootstrap candidates
+        env:
+          CODESTRA_SUPERSET_IMAGE: ghcr.io/appolon1908-hue/superset-superset@sha256:2222222222222222222222222222222222222222222222222222222222222222
+          CODESTRA_SOURCE_SHA: "0000000000000000000000000000000000000000"
+          CODESTRA_IMAGE_DIGEST: sha256:2222222222222222222222222222222222222222222222222222222222222222
+          CODESTRA_ENVIRONMENT: test
+          CODESTRA_REGION: ci
+          CODESTRA_SERVER: github-actions
+          CODESTRA_SUPERSET_DEPLOYMENT_ID: exact-head-ci
+          CODESTRA_ANALYTICS_NETWORK: codestra-analytics
+          CODESTRA_OBSERVABILITY_NETWORK: codestra-observability
+          SUPERSET_SECRET_KEY_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_METADATA_DATABASE_URI_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_REDIS_URL_FILE_SOURCE: /tmp/not-read-during-render
+          SUPERSET_OIDC_CLIENT_SECRET_FILE_SOURCE: /tmp/not-read-during-render
+        run: |
+          docker compose \
+            -f codestra/runtime-v1/compose.candidate.yaml \
+            --profile candidate-after-approval \
+            --profile bootstrap-after-approval \
+            config > /tmp/candidate-compose.yaml
+          test -s /tmp/candidate-compose.yaml
+          test "$(grep -c 'host_ip: 127.0.0.1' /tmp/candidate-compose.yaml)" -eq 1
+          ! grep -Eq \
+            ':latest([[:space:]]|$)|privileged: true|network_mode: host|pid: host|SUPERSET_SECRET_KEY=|SUPERSET_OIDC_CLIENT_SECRET=' \
+            /tmp/candidate-compose.yaml
+
+      - name: Confirm migrations are one-shot only
+        run: |
+          ! grep -A45 '^  superset-web:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -Eq 'db upgrade|superset init'
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -q 'profiles:'
+          grep -A35 '^  superset-bootstrap:' codestra/runtime-v1/compose.candidate.yaml \
+            | grep -q 'superset db upgrade'
