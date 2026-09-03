@@ -64,7 +64,6 @@ def main() -> None:
     compose = read(COMPOSE)
     for fragment in (
         "SUPERSET_LIVENESS_URL: http://127.0.0.1:8088/health",
-        "./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro",
         "- /app/pythonpath/check_metadata_readiness.py",
         "timeout: 8s",
     ):
@@ -72,6 +71,8 @@ def main() -> None:
             fail(f"Compose readiness wiring omits {fragment}")
     if "urllib.request.urlopen('http://127.0.0.1:8088/health'" in compose:
         fail("Compose still certifies only the liveness route")
+    if "./check_metadata_readiness.py:" in compose:
+        fail("readiness code must be embedded in the immutable image")
 
     config = read(CONFIG)
     if "FAB_API_SWAGGER_UI = False" not in config:

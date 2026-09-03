@@ -1,7 +1,7 @@
 name: codestra-superset-corporate
 
 x-superset-common: &superset-common
-  image: ${SUPERSET_IMAGE:?SUPERSET_IMAGE must be an immutable image reference containing @sha256:}
+  image: ${CODESTRA_SUPERSET_IMAGE:?CODESTRA_SUPERSET_IMAGE must be the immutable Codestra image containing @sha256:}
   profiles:
     - candidate-after-approval
   restart: "no"
@@ -25,6 +25,8 @@ x-superset-common: &superset-common
     SUPERSET_REDIS_URL_FILE: /run/secrets/superset_redis_url
     SUPERSET_OIDC_CLIENT_SECRET_FILE: /run/secrets/superset_oidc_client_secret
     SUPERSET_LIVENESS_URL: http://127.0.0.1:8088/health
+    CODESTRA_SOURCE_SHA: ${CODESTRA_SOURCE_SHA:?exact protected source SHA is required}
+    CODESTRA_IMAGE_DIGEST: ${CODESTRA_IMAGE_DIGEST:?exact sha256 image digest is required}
     SUPERSET_ENV: production
     FLASK_ENV: production
   secrets:
@@ -33,9 +35,6 @@ x-superset-common: &superset-common
     - superset_redis_url
     - superset_oidc_client_secret
   volumes:
-    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
-    - ./codestra_security_manager.py:/app/pythonpath/codestra_security_manager.py:ro
-    - ./check_metadata_readiness.py:/app/pythonpath/check_metadata_readiness.py:ro
     - superset_home:/app/superset_home
   tmpfs:
     - /tmp:rw,noexec,nosuid,nodev,size=128m
@@ -59,6 +58,7 @@ x-superset-common: &superset-common
 services:
   superset-web:
     <<: *superset-common
+    restart: unless-stopped
     command:
       - gunicorn
       - --bind=0.0.0.0:8088
@@ -104,6 +104,7 @@ services:
 
   superset-worker:
     <<: *superset-common
+    restart: unless-stopped
     command:
       - celery
       - --app=superset.tasks.celery_app:app
@@ -132,6 +133,7 @@ services:
 
   superset-beat:
     <<: *superset-common
+    restart: unless-stopped
     pids_limit: 128
     command:
       - celery
@@ -159,6 +161,37 @@ services:
           cpus: "0.05"
           memory: 128M
 
+  superset-bootstrap:
+    <<: *superset-common
+    profiles:
+      - bootstrap-after-approval
+    pids_limit: 256
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        superset db upgrade &&
+        superset init &&
+        python /app/pythonpath/bootstrap_roles.py
+    labels:
+      codestra.business: platform
+      codestra.application: analytics
+      codestra.service: superset-bootstrap
+      codestra.environment: ${CODESTRA_ENVIRONMENT:?CODESTRA_ENVIRONMENT is required}
+      codestra.region: ${CODESTRA_REGION:?CODESTRA_REGION is required}
+      codestra.server: ${CODESTRA_SERVER:?CODESTRA_SERVER is required}
+      codestra.deployment: ${CODESTRA_SUPERSET_DEPLOYMENT_ID:?immutable deployment ID is required}
+      codestra.owner: business-intelligence
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+          pids: 256
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+
 networks:
   codestra-analytics:
     external: true
@@ -172,14 +205,10 @@ volumes:
 
 secrets:
   superset_secret_key:
-    external: true
-    name: ${SUPERSET_SECRET_KEY_SECRET_NAME:-superset-secret-key}
+    file: ${SUPERSET_SECRET_KEY_FILE_SOURCE:?mounted Superset secret-key file is required}
   superset_metadata_database_uri:
-    external: true
-    name: ${SUPERSET_METADATA_DATABASE_URI_SECRET_NAME:-superset-metadata-database-uri}
+    file: ${SUPERSET_METADATA_DATABASE_URI_FILE_SOURCE:?mounted metadata-database URI file is required}
   superset_redis_url:
-    external: true
-    name: ${SUPERSET_REDIS_URL_SECRET_NAME:-superset-redis-url}
+    file: ${SUPERSET_REDIS_URL_FILE_SOURCE:?mounted Redis URL file is required}
   superset_oidc_client_secret:
-    external: true
-    name: ${SUPERSET_OIDC_CLIENT_SECRET_NAME:-superset-oidc-client-secret}
+    file: ${SUPERSET_OIDC_CLIENT_SECRET_FILE_SOURCE:?mounted OIDC client-secret file is required}
