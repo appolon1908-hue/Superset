@@ -41,6 +41,7 @@ x-superset-common: &superset-common
   networks:
     - codestra-analytics
     - codestra-observability
+    - superset-egress
   logging:
     driver: json-file
     options:
@@ -199,6 +200,13 @@ networks:
   codestra-observability:
     external: true
     name: ${CODESTRA_OBSERVABILITY_NETWORK:-codestra-observability}
+  superset-egress:
+    name: codestra-superset-egress
+    driver: bridge
+    internal: false
+    labels:
+      codestra.application: analytics
+      codestra.purpose: keycloak-and-approved-datasource-egress
 
 volumes:
   superset_home:

@@ -27,7 +27,9 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          bash -n scripts/production_runtime_preflight.sh scripts/deploy_production.sh
           python3 -m pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt
           python3 scripts/validate_codestra_superset.py
           python3 scripts/validate_codestra_review_hardening.py
@@ -48,9 +50,9 @@ jobs:
             --output "$archive"
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum --check -
           tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
-          "$RUNNER_TEMP/gitleaks" git --no-banner --redact=100 --exit-code 1 \
+          "$RUNNER_TEMP/gitleaks" git --no-banner --redact=100 --verbose --exit-code 1 \
             --log-opts="${BASE_SHA}..${HEAD_SHA}" .
-          "$RUNNER_TEMP/gitleaks" dir --no-banner --redact=100 --exit-code 1 .
+          "$RUNNER_TEMP/gitleaks" dir --no-banner --redact=100 --verbose --exit-code 1 .
       - name: Build and inspect exact locked Superset image
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -86,7 +88,9 @@ jobs:
           python-version: "3.13"
       - name: Validate synthetic merge source
         run: |
+          set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          bash -n scripts/production_runtime_preflight.sh scripts/deploy_production.sh
           python3 -m pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt
           python3 scripts/validate_codestra_superset.py
           python3 scripts/validate_codestra_review_hardening.py
