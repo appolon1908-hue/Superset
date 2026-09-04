@@ -89,6 +89,10 @@ jobs:
     needs: [prepare, release]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      image: ${{ steps.image.outputs.identity }}
+      image_digest: ${{ steps.image.outputs.digest }}
+      release_evidence_sha256: ${{ steps.evidence.outputs.sha256 }}
     permissions:
       contents: write
       packages: read
@@ -192,6 +196,15 @@ jobs:
           PY
           sha256sum superset-signed-release.json > superset-signed-release.SHA256SUMS
 
+      - id: evidence
+        name: Bind exact release evidence
+        run: |
+          set -Eeuo pipefail
+          sha256sum --check superset-signed-release.SHA256SUMS
+          sha256="$(sha256sum superset-signed-release.json | awk '{print $1}')"
+          [[ "$sha256" =~ ^[0-9a-f]{64}$ ]]
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
       - name: Publish immutable GitHub release record
         env:
           IMAGE_IDENTITY: ${{ steps.image.outputs.identity }}
@@ -215,3 +228,20 @@ jobs:
             superset-signed-release.SHA256SUMS
           if-no-files-found: error
           retention-days: 365
+
+  runtime-certification:
+    needs: [prepare, release, verify-release]
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+      attestations: read
+    uses: ./.github/workflows/bounded-runtime-certification.yml
+    with:
+      source_sha: ${{ needs.prepare.outputs.source_sha }}
+      release_tag: ${{ needs.prepare.outputs.release_tag }}
+      image: ${{ needs.verify-release.outputs.image }}
+      image_digest: ${{ needs.verify-release.outputs.image_digest }}
+      release_evidence_sha256: ${{ needs.verify-release.outputs.release_evidence_sha256 }}
+      release_run_id: ${{ github.run_id }}
+    secrets: inherit
