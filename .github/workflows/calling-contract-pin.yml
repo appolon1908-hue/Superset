@@ -1,19 +1,56 @@
 name: calling-contract-pin
+
 on:
   pull_request:
-    paths: [".codestra/calling-contract.lock.json"]
+    paths:
+      - ".codestra/calling-contract.lock.json"
+      - ".github/workflows/calling-contract-pin.yml"
   push:
     branches: ["main"]
-    paths: [".codestra/calling-contract.lock.json"]
-permissions: {contents: read}
+    paths:
+      - ".codestra/calling-contract.lock.json"
+      - ".github/workflows/calling-contract-pin.yml"
+
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Enforce issue 257 contract and fail-closed default
+      - name: Check out exact source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Enforce complete fail-closed calling contract lock
+        shell: bash
         run: |
-          test "$(jq -r .version .codestra/calling-contract.lock.json)" = "1.0.0"
-          test "$(jq -r .sha256 .codestra/calling-contract.lock.json)" = "41b7e1897bad0886fbc8a209f635df28cfd9f80ab3aadd5c04f9ae8e92ac1077"
-          test "$(jq -r .external_effects_enabled .codestra/calling-contract.lock.json)" = "false"
-          test "$(jq -r .role .codestra/calling-contract.lock.json)" = "analytics_only"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def reject_duplicates(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError(f"duplicate lock key: {key}")
+                  result[key] = value
+              return result
+
+          expected = {
+              "schema_version": "codestra.calling-contract-lock.v1",
+              "version": "1.0.0",
+              "sha256": "b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724",
+              "authority": "appolon1908-hue/codestra-production-platform#257",
+              "role": "analytics_only",
+              "external_effects_enabled": False,
+          }
+          path = Path(".codestra/calling-contract.lock.json")
+          actual = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicates)
+          if actual != expected:
+              raise SystemExit(f"calling contract lock mismatch: {actual!r}")
+          print("CALLING_CONTRACT_LOCK=PASS")
+          print("EXTERNAL_EFFECTS_ENABLED=false")
+          PY
