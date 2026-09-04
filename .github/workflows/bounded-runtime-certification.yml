@@ -1,11 +1,35 @@
 name: Superset bounded runtime certification
 
 on:
-  workflow_run:
-    workflows:
-      - Release signed Superset image
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact protected production source SHA
+        required: true
+        type: string
+      release_tag:
+        description: Immutable Superset release tag
+        required: true
+        type: string
+      image:
+        description: Exact digest-qualified signed image
+        required: true
+        type: string
+      image_digest:
+        description: Exact sha256 image digest
+        required: true
+        type: string
+      release_evidence_sha256:
+        description: SHA-256 of the signed release evidence JSON
+        required: true
+        type: string
+      release_run_id:
+        description: Caller workflow run ID that created the release
+        required: true
+        type: string
+    secrets:
+      SUPERSET_READONLY_BEARER_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -14,16 +38,12 @@ permissions:
   attestations: read
 
 concurrency:
-  group: superset-bounded-runtime-${{ github.event.workflow_run.head_sha }}
+  group: superset-bounded-runtime-${{ inputs.source_sha }}
   cancel-in-progress: false
 
 jobs:
   release-policy:
     name: release-policy
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'production'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -32,40 +52,41 @@ jobs:
       image: ${{ steps.release.outputs.image }}
       image_digest: ${{ steps.release.outputs.image_digest }}
       release_evidence_sha256: ${{ steps.release.outputs.release_evidence_sha256 }}
-      release_run_id: ${{ steps.release.outputs.release_run_id }}
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-      RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
-      RELEASE_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
-      REGISTRY: ghcr.io/appolon1908-hue/superset-superset
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      IMAGE: ${{ inputs.image }}
+      IMAGE_DIGEST: ${{ inputs.image_digest }}
+      RELEASE_EVIDENCE_SHA256: ${{ inputs.release_evidence_sha256 }}
+      RELEASE_RUN_ID: ${{ inputs.release_run_id }}
     steps:
       - name: Check out the exact protected production source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ inputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Prove production and triggering workflow authority
+      - name: Prove release and production authority
         run: |
           set -Eeuo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^codestra-superset-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$RELEASE_RUN_ID" =~ ^[0-9]+$ ]]
-          [[ "$RELEASE_RUN_NUMBER" =~ ^[0-9]+$ ]]
+          test "$IMAGE" = "ghcr.io/appolon1908-hue/superset-superset@${IMAGE_DIGEST}"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git fetch --no-tags origin production
           test "$(git rev-parse origin/production)" = "$SOURCE_SHA"
-          test "${{ github.event.workflow_run.path }}" = .github/workflows/release-image.yml
           echo SUPERSET_BOUNDED_RELEASE_POLICY=PASS
 
-      - name: Download the triggering release evidence
+      - name: Download caller release evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: superset-signed-release-${{ github.event.workflow_run.head_sha }}
+          name: superset-signed-release-${{ inputs.source_sha }}
           path: release-evidence
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
@@ -80,42 +101,38 @@ jobs:
           password: ${{ github.token }}
 
       - id: release
-        name: Verify the immutable release tuple
+        name: Reverify immutable release tuple
         run: |
           set -Eeuo pipefail
           cd release-evidence
           sha256sum --check superset-signed-release.SHA256SUMS
-          release_evidence_sha256="$(sha256sum superset-signed-release.json | awk '{print $1}')"
-          [[ "$release_evidence_sha256" =~ ^[0-9a-f]{64}$ ]]
-
-          release_tag="codestra-superset-v2026.9.${RELEASE_RUN_NUMBER}"
-          image="$(jq -er '.image' superset-signed-release.json)"
-          image_digest="$(jq -er '.image_digest' superset-signed-release.json)"
+          test "$(sha256sum superset-signed-release.json | awk '{print $1}')" = \
+            "$RELEASE_EVIDENCE_SHA256"
           test "$(jq -er '.schema' superset-signed-release.json)" = codestra.superset-signed-release.v1
           test "$(jq -er '.repository' superset-signed-release.json)" = "$GITHUB_REPOSITORY"
           test "$(jq -er '.source_sha' superset-signed-release.json)" = "$SOURCE_SHA"
-          test "$(jq -er '.release_tag' superset-signed-release.json)" = "$release_tag"
+          test "$(jq -er '.release_tag' superset-signed-release.json)" = "$RELEASE_TAG"
+          test "$(jq -er '.image' superset-signed-release.json)" = "$IMAGE"
+          test "$(jq -er '.image_digest' superset-signed-release.json)" = "$IMAGE_DIGEST"
           test "$(jq -er '.release_run_id' superset-signed-release.json)" = "$RELEASE_RUN_ID"
           test "$(jq -er '.signature' superset-signed-release.json)" = PASS
           test "$(jq -er '.spdx_attestation' superset-signed-release.json)" = PASS
           test "$(jq -er '.github_build_provenance' superset-signed-release.json)" = PASS
           test "$(jq -er '.production_activation' superset-signed-release.json)" = false
-          [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          test "$image" = "${REGISTRY}@${image_digest}"
 
-          docker pull "$image" >/dev/null
-          bash ../scripts/verify_release_identity.sh "$image" "$SOURCE_SHA"
-          test "$(docker image inspect "$image" --format '{{.Config.User}}')" = 10001:10001
+          docker pull "$IMAGE" >/dev/null
+          bash ../scripts/verify_release_identity.sh "$IMAGE" "$SOURCE_SHA"
+          test "$(docker image inspect "$IMAGE" --format '{{.Config.User}}')" = 10001:10001
           cosign verify \
             --certificate-identity-regexp '^https://github.com/appolon1908-hue/Codestra-Telemetry/.github/workflows/reusable-release-image.yml@.*$' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "$image" >/dev/null
+            "$IMAGE" >/dev/null
           cosign verify-attestation \
             --type spdxjson \
             --certificate-identity-regexp '^https://github.com/appolon1908-hue/Codestra-Telemetry/.github/workflows/reusable-release-image.yml@.*$' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "$image" >/dev/null
-          gh attestation verify "oci://${image}" \
+            "$IMAGE" >/dev/null
+          gh attestation verify "oci://${IMAGE}" \
             --repo "$GITHUB_REPOSITORY" \
             --signer-repo appolon1908-hue/Codestra-Telemetry \
             --signer-workflow appolon1908-hue/Codestra-Telemetry/.github/workflows/reusable-release-image.yml \
@@ -126,11 +143,10 @@ jobs:
 
           {
             printf 'source_sha=%s\n' "$SOURCE_SHA"
-            printf 'release_tag=%s\n' "$release_tag"
-            printf 'image=%s\n' "$image"
-            printf 'image_digest=%s\n' "$image_digest"
-            printf 'release_evidence_sha256=%s\n' "$release_evidence_sha256"
-            printf 'release_run_id=%s\n' "$RELEASE_RUN_ID"
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'image=%s\n' "$IMAGE"
+            printf 'image_digest=%s\n' "$IMAGE_DIGEST"
+            printf 'release_evidence_sha256=%s\n' "$RELEASE_EVIDENCE_SHA256"
           } >> "$GITHUB_OUTPUT"
           echo SUPERSET_SIGNED_RELEASE_TUPLE=PASS
 
