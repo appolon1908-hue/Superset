@@ -36,6 +36,8 @@ class ProductionActivationWorkflowTests(unittest.TestCase):
             "superset-signed-release.SHA256SUMS",
             "production_activation\": False",
             "gh release create",
+            "uses: ./.github/workflows/bounded-runtime-certification.yml",
+            "secrets: inherit",
         ):
             self.assertIn(token, text)
         for forbidden in (
@@ -55,10 +57,10 @@ class ProductionActivationWorkflowTests(unittest.TestCase):
     def test_bounded_workflow_orders_release_staging_rollback_and_canary(self) -> None:
         text = BOUNDED_WORKFLOW.read_text(encoding="utf-8")
         for token in (
-            "workflow_run:",
-            "Release signed Superset image",
-            "github.event.workflow_run.conclusion == 'success'",
-            "github.event.workflow_run.head_branch == 'production'",
+            "workflow_call:",
+            "source_sha:",
+            "release_evidence_sha256:",
+            "release_run_id:",
             "release-policy:",
             "artifact-staging-certification:",
             "bounded-staging-runtime:",
@@ -79,6 +81,7 @@ class ProductionActivationWorkflowTests(unittest.TestCase):
         self.assertLess(text.index("artifact-staging-certification:"), text.index("bounded-staging-runtime:"))
         self.assertLess(text.index("bounded-staging-runtime:"), text.index("production-readonly-canary:"))
         for forbidden in (
+            "workflow_run:",
             "PRODUCTION_SSH_PRIVATE_KEY",
             "scripts/deploy_production.sh",
             "docker compose up",
