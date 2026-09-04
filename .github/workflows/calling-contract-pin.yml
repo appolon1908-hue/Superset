@@ -47,10 +47,47 @@ jobs:
               "role": "analytics_only",
               "external_effects_enabled": False,
           }
+
+          def validate(document):
+              if type(document) is not dict or set(document) != set(expected):
+                  raise ValueError("calling contract lock field set mismatch")
+              for field in ("schema_version", "version", "sha256", "authority", "role"):
+                  if type(document[field]) is not str or document[field] != expected[field]:
+                      raise ValueError(f"calling contract {field} mismatch")
+              if document["external_effects_enabled"] is not False:
+                  raise ValueError("external_effects_enabled must be JSON boolean false")
+              if document != expected:
+                  raise ValueError("calling contract lock mismatch")
+
           path = Path(".codestra/calling-contract.lock.json")
-          actual = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicates)
-          if actual != expected:
-              raise SystemExit(f"calling contract lock mismatch: {actual!r}")
+          actual = json.loads(
+              path.read_text(encoding="utf-8"),
+              object_pairs_hook=reject_duplicates,
+          )
+          validate(actual)
+
+          invalid_documents = (
+              {**expected, "external_effects_enabled": 0},
+              {**expected, "external_effects_enabled": "false"},
+              {**expected, "external_effects_enabled": True},
+          )
+          for number, document in enumerate(invalid_documents, 1):
+              try:
+                  validate(document)
+              except ValueError:
+                  continue
+              raise SystemExit(f"negative type fixture {number} was accepted")
+
+          for number, sample in enumerate((
+              '{"role":"wrong","role":"analytics_only"}',
+              '{"external_effects_enabled":true,"external_effects_enabled":false}',
+          ), 1):
+              try:
+                  json.loads(sample, object_pairs_hook=reject_duplicates)
+              except ValueError:
+                  continue
+              raise SystemExit(f"duplicate-key fixture {number} was accepted")
+
           print("CALLING_CONTRACT_LOCK=PASS")
           print("EXTERNAL_EFFECTS_ENABLED=false")
           PY
