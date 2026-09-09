@@ -1,1 +1,4 @@
+# Upstream is a provenance-locked byte mirror. Keep upstream line endings and
+# treat CRLF terminators as valid while retaining all other whitespace checks.
 upstream/** -text
+upstream/** whitespace=cr-at-eol
