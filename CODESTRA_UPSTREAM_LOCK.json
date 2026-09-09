@@ -2,10 +2,10 @@
   "schema_version": "1.1",
   "upstream_clone_url": "https://github.com/apache/superset.git",
   "upstream_ref": "master",
-  "upstream_commit": "96119ffefce6165efa4a655dd4674ec697b819d1",
+  "upstream_commit": "f69023a9c6c1b336215a942b563781216ec73008",
   "import_path": "upstream",
-  "imported_tree_sha": "e8eb116376da9ec2a53b374b67f4b1cf9480262b",
+  "imported_tree_sha": "642f91a4d1df1e427090432b27ba24f29e90dbc2",
   "source_tree_verification": true,
-  "synchronized_at": "2026-08-29T17:23:55.470814+00:00",
+  "synchronized_at": "2026-09-09T20:30:14Z",
   "deployment_enabled": false
 }
