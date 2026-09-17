@@ -39,3 +39,9 @@ MoneyBee reporting cannot submit applications to lenders, initiate funding or ch
 ## Promotion
 
 Promotion is `feature/* -> development -> test -> staging -> production -> main`. A green source PR proves configuration quality only. Production additionally requires immutable image evidence, Keycloak role tests, datasource approval, RLS denial tests, PII review, performance evidence, dashboard ownership and Caddy route approval.
+
+## Monitoring platform boundary (2026-09-16)
+
+- Superset is business analytics over curated read-only projections from Middleware and Odoo. `codestra/monitoring-platform-boundary.v1.json` records that it never becomes a Prometheus replacement, a log database, a trace backend, an OpenBao administration interface or an operational database writer, and forbids any connection to Prometheus, Loki, Tempo, Alertmanager, OpenBao or the Middleware runtime.
+- Every secret Superset reads (`read_secret(*_FILE)`) is the OpenBao agent rendering of a reference in `codestra/secret-references.v1.json` held by the read-only `superset-analytics` identity (`codestra/<environment>/analytics/superset/*`); nothing is committed and no OpenBao token or address variable exists in the runtime configuration.
+- `scripts/validate_monitoring_platform_boundary.py` fails closed on any of those conditions and on a dataset policy that drops the read-only, reporting-schema requirement.

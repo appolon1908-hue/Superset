@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "component": "superset",
+  "role": "business-analytics-only",
+  "consumes": [
+    "curated read-only projections from Middleware and Odoo on the reporting schema or replica"
+  ],
+  "neverBecomes": [
+    "prometheus-replacement",
+    "log-database",
+    "trace-backend",
+    "openbao-administration-interface",
+    "operational-database-writer"
+  ],
+  "forbiddenDatasourceHosts": [
+    "prometheus",
+    "loki",
+    "loki-query",
+    "tempo",
+    "alertmanager",
+    "openbao",
+    "bao.codestra.media",
+    "middleware-integration-api"
+  ],
+  "forbiddenEnvironmentVariables": [
+    "BAO_TOKEN",
+    "VAULT_TOKEN",
+    "BAO_ADDR",
+    "VAULT_ADDR",
+    "OPENBAO_TOKEN"
+  ],
+  "identity": {
+    "openbaoWorkloadIdentity": "superset-analytics",
+    "openbaoPathPrefix": "codestra/<environment>/analytics/superset/",
+    "keycloakClient": "superset-analytics",
+    "databaseRole": "read-only",
+    "secretReferences": "codestra/secret-references.v1.json"
+  },
+  "readOnlyConnectionRequired": true,
+  "runtimeApplyAuthorized": false
+}
