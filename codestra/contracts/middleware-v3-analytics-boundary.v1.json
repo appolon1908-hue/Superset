@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "middleware-v3-analytics-boundary",
+  "lane": "E",
+  "status": "PREPARED_DISABLED",
+  "activation_enabled": false,
+  "provider_effects_enabled": false,
+  "purpose": "Superset is read-only business analytics over curated projections. It has no Middleware V3 command authority: no command execution, no provider mutation, no operational writes and no secret-resolution authority. This contract records the audited boundary and pins it to the Middleware prep base.",
+  "middleware": {
+    "repository": "appolon1908-hue/Middleware-",
+    "prep_base_sha": "22d023a9c65b0789a0f7ee6c28548753521a9eff",
+    "v3_final_sha": "PENDING",
+    "repin_required_after_v3_merge": true,
+    "v3_candidate_observed": {
+      "branch": "mission/middleware-v3-command-kernel-20260919",
+      "sha": "1acb2ae",
+      "authority": "informational only; unmerged, owned by the Middleware V3 session"
+    }
+  },
+  "audit": {
+    "role": "business-analytics-only (codestra/monitoring-platform-boundary.v1.json)",
+    "middleware_v3_command_authority": false,
+    "command_execution": false,
+    "provider_mutation": false,
+    "operational_writes": false,
+    "secret_resolution_authority": false,
+    "observed": {
+      "forbidden_datasource_hosts_include_middleware_and_openbao": true,
+      "forbidden_openbao_admin_environment_variables": [
+        "BAO_TOKEN",
+        "VAULT_TOKEN",
+        "BAO_ADDR",
+        "VAULT_ADDR",
+        "OPENBAO_TOKEN"
+      ],
+      "identity": "keycloak client superset-analytics; OpenBao workload superset-analytics; read-only database role",
+      "write_dml_or_ddl": false,
+      "alert_reports_feature": false,
+      "template_processing_feature": false,
+      "embedded_superset_feature": false,
+      "prevent_unsafe_db_connections": true,
+      "auth_type": "AUTH_OAUTH (Keycloak), no public role",
+      "metadata_database_uri_from_rendered_file": true,
+      "public_exposure": "supe.codestra.media through Caddy with native Keycloak OIDC only; loopback publish 127.0.0.1:8088 on the host"
+    },
+    "proofs": [
+      "scripts/validate_monitoring_platform_boundary.py",
+      "tests/test_monitoring_platform_boundary.py",
+      "tests/test_middleware_v3_analytics_boundary.py"
+    ]
+  },
+  "v3_expectations": [
+    "Superset reads Middleware V3 outcomes only through curated reporting projections (replica or reporting schema), never through the Middleware API or the kernel database",
+    "No Superset alert, report or export may trigger a provider effect; the middleware-governed notification path stays the only delivery authority",
+    "Re-pin middleware.v3_final_sha after V3 merges; no other change expected"
+  ]
+}
