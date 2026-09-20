@@ -106,7 +106,7 @@ def validate_json_catalogue() -> None:
 def validate_upstream_lock() -> None:
     authority = load_json(ROOT / "CODESTRA_UPSTREAM.json")
     lock = load_json(ROOT / "CODESTRA_UPSTREAM_LOCK.json")
-    if authority.get("codestra_repository") != "appolon1908-hue/Superset":
+    if authority.get("codestra_repository") != "ingtrader21-spec/Superset":
         fail("upstream authority repository mismatch")
     if authority.get("upstream_repository") != "apache/superset":
         fail("upstream repository mismatch")
@@ -373,7 +373,7 @@ def validate_repository_identity() -> None:
                 fail(f"{path.name} omits repository state: {fragment}")
 
     adoption = load_json(ROOT / "orbit" / "adoption-manifest.json")
-    if adoption.get("repository") != "appolon1908-hue/Superset":
+    if adoption.get("repository") != "ingtrader21-spec/Superset":
         fail("Orbit repository identity mismatch")
     if adoption.get("domain") != EXPECTED_HOST:
         fail("Orbit domain mismatch")
@@ -382,7 +382,7 @@ def validate_repository_identity() -> None:
     if adoption.get("status") != "blocked-pending-orbit-authority-merge":
         fail("Orbit adoption must remain fail-closed")
     authority = adoption.get("orbitAuthority", {})
-    if authority.get("repository") != "appolon1908-hue/SDK-repository":
+    if authority.get("repository") != "ingtrader21-spec/SDK-repository":
         fail("Orbit SDK authority mismatch")
     if authority.get("pullRequest") != 75:
         fail("Orbit authority pull request mismatch")

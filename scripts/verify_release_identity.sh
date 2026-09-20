@@ -12,7 +12,7 @@ expected_digest="sha256:${BASH_REMATCH[1]}"
 # binds deployment inputs to the exact locally pulled OCI object and protected
 # source revision emitted by the signed release workflow.
 test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = \
-  "https://github.com/appolon1908-hue/Superset"
+  "https://github.com/ingtrader21-spec/Superset"
 test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = \
   "$source_sha"
 test "$(docker image inspect "$image" --format '{{.Config.User}}')" = "10001:10001"

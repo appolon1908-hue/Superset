@@ -24,7 +24,7 @@ trap cleanup EXIT
 docker build \
   --file codestra/runtime-v1/Dockerfile \
   --build-arg "SUPERSET_BASE_IMAGE=$runtime" \
-  --label "org.opencontainers.image.source=https://github.com/appolon1908-hue/Superset" \
+  --label "org.opencontainers.image.source=https://github.com/ingtrader21-spec/Superset" \
   --label "org.opencontainers.image.revision=$source_sha" \
   --tag "$image" \
   .

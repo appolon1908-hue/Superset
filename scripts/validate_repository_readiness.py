@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 IMAGE = re.compile(r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$")
 GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 AUTHORITY = (
-    "appolon1908-hue/Codestra-Telemetry/.github/workflows/"
+    "ingtrader21-spec/Codestra-Telemetry/.github/workflows/"
     "reusable-release-image.yml@9a6aebb849bbc068105c10d9d1dfd39ebf6f78bd"
 )
 REQUIRED = (
@@ -281,7 +281,7 @@ def validate_release_identity() -> None:
             "ghcr\\.io/appolon1908-hue/superset-superset@sha256:",
             "org.opencontainers.image.source",
             "org.opencontainers.image.revision",
-            "https://github.com/appolon1908-hue/Superset",
+            "https://github.com/ingtrader21-spec/Superset",
             "10001:10001",
             ".RepoDigests",
             "SUPERSET_RELEASE_IDENTITY=PASS",

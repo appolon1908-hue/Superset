@@ -1,6 +1,6 @@
 # Codestra Superset Authority
 
-Principal repository: `appolon1908-hue/Superset`
+Principal repository: `ingtrader21-spec/Superset`
 Canonical service host: `supe.codestra.media`
 Canonical DNS target: `37.27.128.39`
 
