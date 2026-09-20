@@ -52,7 +52,7 @@ jobs:
             codestra/runtime-v1/codestra_security_manager_v2.py \
             codestra/runtime-v1/superset_config.py \
             codestra/runtime-v1/superset_config.py.example
-          python scripts/validate_codestra_superset.py
+          python scripts/validate_codestra_superset.py
           python scripts/validate_monitoring_platform_boundary.py
           python -m unittest tests/test_monitoring_platform_boundary.py -v
           python scripts/validate_codestra_review_hardening.py
