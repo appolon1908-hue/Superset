@@ -2,7 +2,7 @@
 
 ## Identity
 
-- **Repository:** `appolon1908-hue/Superset`
+- **Repository:** `ingtrader21-spec/Superset`
 - **Category:** Authenticated analytics operator UI — Apache Superset
 - **Visibility:** Public source repository; private runtime and data plane
 - **Default branch:** `main`

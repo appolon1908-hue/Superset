@@ -2,7 +2,7 @@
 
 ## Authority
 
-- Repository: `appolon1908-hue/Superset`
+- Repository: `ingtrader21-spec/Superset`
 - Role: certified read-only business analytics authority
 - Canonical hostname: `supe.codestra.media`
 - Central production host: `37.27.128.39`

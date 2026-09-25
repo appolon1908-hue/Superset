@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1",
   "component": "apache-superset",
-  "codestra_repository": "appolon1908-hue/Superset",
+  "codestra_repository": "ingtrader21-spec/Superset",
   "upstream_repository": "apache/superset",
   "upstream_clone_url": "https://github.com/apache/superset.git",
   "tracking_ref": "master",
