@@ -1,0 +1,12 @@
+version: 1
+repository: Superset
+repository_url: https://github.com/ingtrader21-spec/Superset.git
+canonical_path: /home/codestra/Worktrees/Monitoring-Active-20260926/Superset
+active_worktree: /home/codestra/Worktrees/Monitoring-Active-20260926/Superset
+active_branch: governance/single-active-lane-20260926
+base_branch: main
+base_sha: ea18d4af92fe9a09a7bf92d41f260a6c22cedc67
+upstream_ref: origin/main
+publication_branch: governance/single-active-lane-20260926
+production_effects_allowed: false
+certification_mode: isolated_exact_sha
