@@ -4,8 +4,8 @@ repository: "appolon1908/Superset"
 canonical_url: "https://github.com/appolon1908/Superset"
 default_branch_observed: "main"
 classification:
-  type: "application"
-  subtype: "general"
+  type: "data-platform"
+  subtype: "analytics-bi"
   standalone: true
   integration_boundary: "api-or-endpoint"
 lifecycle:
